@@ -6,7 +6,9 @@
 </script>
 
 {#snippet content()}
-	<div class="card preset-filled-surface-100-900 h-fit p-4 w-full hover:preset-filled-surface-200-800">
+	<div
+		class="card preset-filled-surface-100-900 hover:preset-filled-surface-200-800 h-fit w-full p-4"
+	>
 		<h1>Private page for user: {user?.email}</h1>
 		<ul class="list-inside list-disc space-y-2">
 			{#each staff as person (person.id)}
@@ -17,7 +19,7 @@
 {/snippet}
 
 <section class="flex flex-wrap gap-4">
-	{#each Array.from({ length: counter }) as _, index (index)}
+	{#each Array.from({ length: counter }) as _}
 		{@render content()}
 	{/each}
 </section>

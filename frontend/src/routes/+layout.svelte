@@ -3,6 +3,7 @@
 
 	import { invalidate } from '$app/navigation';
 	import { onMount } from 'svelte';
+	import { Toaster } from 'svelte-french-toast';
 
 	let { data, children } = $props();
 	let { session, supabase } = $derived(data);
@@ -18,4 +19,5 @@
 	});
 </script>
 
+<Toaster position="bottom-right" />
 {@render children()}

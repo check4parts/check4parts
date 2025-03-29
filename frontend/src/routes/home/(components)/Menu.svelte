@@ -1,14 +1,15 @@
 <script lang="ts">
 	let { page }: { page: string } = $props();
 	import { slide } from 'svelte/transition';
+
+	let subMenuOpen = $state<string>();
 </script>
 
 {#snippet menuItem(pageValue: string, pageTitle: string)}
-	<a
+	<button
 		class:font-bold={page === pageValue}
-		class:hover:font-medium={page !== pageValue}
-		href="/home/{pageValue}"
 		class="flex items-center gap-2 text-xl"
+		onclick={() => (subMenuOpen = pageValue)}
 	>
 		<img
 			src={page === pageValue ? `/settings-icon-selected.svg` : `/settings-icon.svg`}
@@ -16,15 +17,19 @@
 			class=" size-6"
 		/>
 		{pageTitle}
-	</a>
+	</button>
 {/snippet}
 
-{#snippet subMenu(pageValue: string, subPages: { href: string; title: string }[])}
-	{#if page === pageValue}
+{#snippet subMenu(
+	pageValue: string,
+	root: string = '/home',
+	subPages: { page: string; title: string }[]
+)}
+	{#if page === pageValue || subMenuOpen === pageValue}
 		<ul class="pl-9" transition:slide={{ duration: 200 }}>
-			{#each subPages as subPage (subPage.href)}
+			{#each subPages as subPage (subPage.page)}
 				<li>
-					<a href={subPage.href} class="anchor">{subPage.title}</a>
+					<a href="{root}/{pageValue}/{subPage.page}" class="anchor">{subPage.title}</a>
 				</li>
 			{/each}
 		</ul>
@@ -35,16 +40,13 @@
 	<ul>
 		<li>
 			{@render menuItem('staff', 'Співробітники')}
-			{@render subMenu('staff', [
-				{ href: 'staff/0', title: 'Співробітники' },
-				{ href: 'staff/1', title: 'Додати співробітника' }
-			])}
+			{@render subMenu('staff', undefined, [{ page: '', title: 'Співробітники' }])}
 		</li>
 		<li>
 			{@render menuItem('settings', 'Налаштування')}
-			{@render subMenu('settings', [
-				{ href: 'settings/0', title: 'Налаштування' },
-				{ href: 'settings/1', title: 'Додати налаштування' }
+			{@render subMenu('settings', undefined, [
+				{ page: 'trading-points', title: 'Торгівельні точки' },
+				{ page: 'suppliers', title: 'Постачальники' }
 			])}
 		</li>
 	</ul>

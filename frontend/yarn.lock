@@ -2262,6 +2262,13 @@ svelte-eslint-parser@^1.0.1:
     postcss-scss "^4.0.9"
     postcss-selector-parser "^7.0.0"
 
+svelte-french-toast@^1.2.0:
+  version "1.2.0"
+  resolved "https://registry.yarnpkg.com/svelte-french-toast/-/svelte-french-toast-1.2.0.tgz#bfe3696ee1e3cbdee2a300e0153dede7d6d802eb"
+  integrity sha512-5PW+6RFX3xQPbR44CngYAP1Sd9oCq9P2FOox4FZffzJuZI2mHOB7q5gJBVnOiLF5y3moVGZ7u2bYt7+yPAgcEQ==
+  dependencies:
+    svelte-writable-derived "^3.1.0"
+
 svelte-toolbelt@^0.7.1:
   version "0.7.1"
   resolved "https://registry.yarnpkg.com/svelte-toolbelt/-/svelte-toolbelt-0.7.1.tgz#63e9c6629456a1a0dd57812f85426e4631fd754e"
@@ -2270,6 +2277,11 @@ svelte-toolbelt@^0.7.1:
     clsx "^2.1.1"
     runed "^0.23.2"
     style-to-object "^1.0.8"
+
+svelte-writable-derived@^3.1.0:
+  version "3.1.1"
+  resolved "https://registry.yarnpkg.com/svelte-writable-derived/-/svelte-writable-derived-3.1.1.tgz#03222b32f8a66ea503e95b3cce8b94bec0810044"
+  integrity sha512-w4LR6/bYZEuCs7SGr+M54oipk/UQKtiMadyOhW0PTwAtJ/Ai12QS77sLngEcfBx2q4H8ZBQucc9ktSA5sUGZWw==
 
 svelte@^5.0.0:
   version "5.23.0"

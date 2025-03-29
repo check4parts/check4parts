@@ -35,7 +35,7 @@
 		</div>
 		<button type="button" class="btn preset-filled-primary-950-50" onclick={logout}>Logout</button>
 	</menu>
-	<section class="rounded-3xl border-[1rem] border-white bg-white overflow-y-auto">
+	<section class="overflow-y-auto rounded-3xl border-[1.5rem] border-white bg-white">
 		{@render children()}
 	</section>
 </main>

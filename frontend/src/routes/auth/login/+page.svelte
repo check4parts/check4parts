@@ -22,10 +22,10 @@
 		<label class="label">
 			<span class="label-text text-lg">Електронна пошта</span>
 			<input
-			class:border-error-400={invalidCredentials}
-			class:border-error-500={!email_valid && email}
-			class:border-primary-400={email_valid}
-			class="input h-16 border"
+				class:border-error-400={invalidCredentials}
+				class:border-error-500={!email_valid && email}
+				class:border-primary-400={email_valid}
+				class="input h-16 border"
 				name="email"
 				type="email"
 				placeholder="Введіть адресу  електронної пошти"
