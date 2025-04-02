@@ -46,6 +46,7 @@
 			{@render menuItem('settings', 'Налаштування')}
 			{@render subMenu('settings', undefined, [
 				{ page: 'trading-points', title: 'Торгівельні точки' },
+				{ page: 'users', title: 'Користувачі' },
 				{ page: 'suppliers', title: 'Постачальники' }
 			])}
 		</li>
