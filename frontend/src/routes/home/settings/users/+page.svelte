@@ -59,7 +59,11 @@
 					<tbody class="!divide-primary-950 !divide-y-2">
 						{#each filteredStaff as person (person.id)}
 							<tr class="divide-primary-950 group hover:bg-primary-50 w-full divide-x-2">
-								<td class="w-1/3">{person.name}</td>
+								<td class="w-1/3">
+								<a href="/home/settings/users/{person.id}">
+									{person.name}
+								</a>
+								</td>
 								<td class="w-1/3">{person.roles.name}</td>
 								<td class="w-1/3"
 									>{person.trading_points

@@ -1,4 +1,10 @@
 <script lang="ts">
+	import InputPasswordField from '$lib/components/card-form/InputPasswordField.svelte';
+	import InputSelect from '$lib/components/card-form/InputSelect.svelte';
+	import InputTextField from '$lib/components/card-form/InputTextField.svelte';
+
+	let { data } = $props();
+	let { points, roles } = $derived(data);
 </script>
 
 {#snippet inputTextField(
@@ -31,17 +37,17 @@
 			<div class="card preset-filled-surface-50-950 flex w-full flex-col p-8">
 				<h3 class="h6">Персональна інформація</h3>
 				<div class="flex flex-col gap-10">
-					{@render inputTextField('Прізвище', 'text', 'name', 'Введіть прізвище')}
-					{@render inputTextField("Ім'я", 'text', 'first_name', "Введіть ім'я")}
-					{@render inputTextField('По батькові', 'text', 'last_name', 'Введіть по батькові')}
+					<InputTextField lable='Прізвище' type='text' name='last_name' placeholder='Введіть прізвище'/>
+					<InputTextField lable="Ім'я" type='text' name='first_name' placeholder="Введіть ім'я" />
+					<InputTextField lable='По батькові' type='text' name='second_name' placeholder='Введіть по батькові'/>
 				</div>
 			</div>
 
       <div class="card preset-filled-surface-50-950 flex w-full flex-col p-8 col-start-1 row-start-2">
 				<h3 class="h6">Контактні дані</h3>
 				<div class="flex flex-col gap-10">
-					{@render inputTextField('Номір телефону', 'text', 'name', 'Введіть прізвище')}
-					{@render inputTextField('Адреса місця роботи', 'text', 'first_name', "Введіть ім'я")}
+					<InputTextField lable='Номер телефону' type='text' name='phone' placeholder='Введіть номер телефону'/>
+					<InputSelect label="Адреса місця роботи" name="training_point" placeholder="Оберіть локацію, де працює користувач" items={points} />
 				</div>
 			</div>
 
@@ -49,8 +55,8 @@
 				<h3 class="h6">Дані для входу</h3>
 				<div class="flex flex-col gap-10">
 					{@render inputTextField('Електронна пошта', 'email', 'eamil', 'Введіть адресу  електронної пошти')}
-					{@render inputTextField("Пароль", 'password', 'password', "Введіть пароль")}
-					{@render inputTextField('Повторіть пароль', 'password', 'repeat_password', 'Повторіть пароль')}
+					<InputPasswordField lable="Пароль" name="password" placeholder="Введіть пароль"/>
+					<InputPasswordField lable="Повторіть пароль" name="repeat_password" placeholder="Повторіть пароль" />
 				</div>
 			</div>
 
@@ -60,8 +66,8 @@
         <div class="card preset-filled-surface-50-950 flex w-full flex-col p-8">
           <h3 class="h6">Роль у системі</h3>
           <div class="flex flex-col gap-10">
-            {@render inputTextField('Посада', 'text', 'name', 'Обреіть посаду користувача')}
-          </div>
+						<InputSelect  label="Посада" name="role" placeholder="Оберіть посаду користувача" items={roles} />
+					</div>
         </div>
         <div class="flex justify-end gap-5">
           <a class="btn preset-outlined-primary-950-50 mt-5 w-[10rem]" href="/home/settings/users">Скасувати</a>
