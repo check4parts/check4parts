@@ -1,37 +1,49 @@
 <script lang="ts">
-  let { lable, name, placeholder, required = false, value = $bindable() } : {
+  let { lable, name, placeholder, required = false, value = $bindable(), repeat_password_invalid = $bindable(), missing = false } : {
     lable: string;
     name: string;
     placeholder: string;
     required?: boolean;
     value?: string;
-    showPassword?: boolean
+    showPassword?: boolean;
+    repeat_password_invalid?: boolean;
+    missing?: boolean;
   } = $props();
 
   let showPassword = $state(false);
-  $inspect(showPassword);
+  let password_valid = $state(false);
 
-  const togglePassword = () => {
-    showPassword = !showPassword
-  }
+  let invalid = $state(false);
+
+  $effect(() => {
+    invalid = (!value && missing) || repeat_password_invalid!;
+  })
 </script>
 
-<label class="relative block w-full label">
+<label class="block w-full label relative">
   <span class="text-sm">{lable}</span>
   <input
-    class="input focus:outline-primary-500 h-12 px-4 py-3 pr-14 bg-white placeholder:text-gray-400"
-    style="box-shadow: none;"
+    class:border-error-400={invalid}
+    class:border={invalid}
+    class="input shadow-none focus:outline-primary-500 h-12 px-4 pr-14 bg-white placeholder:text-gray-400"
     {name}
     type={showPassword ? 'text' : 'password'}
     {placeholder}
     {required}
-    {value}
+    bind:value={value}
+    oninput={(e: Event) => {
+      const target = e.target as HTMLInputElement;
+      password_valid = target?.validity?.valid || false;
+    }}
   />
-  <button type="button" class="absolute top-[43%] right-4" onmousedown={togglePassword}>
+  <button type="button" class="absolute top-[43%] right-4" onmousedown={() => showPassword = !showPassword}>
     {#if showPassword}
-    <img src="/hide-pass.svg" alt="search" class="size-8"  />
-    {:else}
     <img src="/show-pass.svg" alt="search" class="size-8" />
+    {:else}
+    <img src="/hide-pass.svg" alt="search" class="size-8"  />
     {/if}
   </button>
+  {#if repeat_password_invalid}
+    <span class="text-error-400 text-sm absolute">Паролі не співпадають</span>
+  {/if}
 </label>

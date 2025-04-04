@@ -2,14 +2,14 @@
 	let { data } = $props();
 	let { staff } = $derived(data);
 
-	let modalOpenState = $state(false);
-
 	let search = $state<string>('');
 	let searchQuery = $derived(search.toLocaleLowerCase());
 	let filteredStaff = $derived(
 		staff.filter((person) =>
 			[
-				person.name,
+				person.first_name,
+				person.last_name,
+				person.middle_name,
 				person.roles.name,
 				person.trading_points?.name,
 				person.trading_points?.street,
@@ -61,7 +61,7 @@
 							<tr class="divide-primary-950 group hover:bg-primary-50 w-full divide-x-2">
 								<td class="w-1/3">
 								<a href="/home/settings/users/{person.id}">
-									{person.name}
+									{person.first_name} {person.last_name}
 								</a>
 								</td>
 								<td class="w-1/3">{person.roles.name}</td>
