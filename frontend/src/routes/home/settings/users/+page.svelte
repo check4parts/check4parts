@@ -1,4 +1,6 @@
 <script lang="ts">
+	import EdidDeleteElementMenu from '$lib/components/table/EditDeleteModel.svelte';
+
 	let { data } = $props();
 	let { staff } = $derived(data);
 
@@ -60,16 +62,26 @@
 						{#each filteredStaff as person (person.id)}
 							<tr class="divide-primary-950 group hover:bg-primary-50 w-full divide-x-2">
 								<td class="w-1/3">
-								<a href="/home/settings/users/{person.id}">
-									{person.first_name} {person.last_name}
-								</a>
+									{person.first_name}
+									{person.last_name}
 								</td>
 								<td class="w-1/3">{person.roles.name}</td>
-								<td class="w-1/3"
-									>{person.trading_points
-										? `${person.trading_points.name} (${person.trading_points.street}, ${person.trading_points.locality})`
-										: '(не додано)'}</td
-								>
+								<td class="flex items-center justify-between">
+									<p class="w-6/7">
+										{person.trading_points
+											? `${person.trading_points.name} (${person.trading_points.street}, ${person.trading_points.locality})`
+											: '(не додано)'}
+									</p>
+									<EdidDeleteElementMenu
+										editLink={`/home/settings/users/${person.id}`}
+										deleteModalConfigs={{
+											title: `Видалення користувача ${person.first_name}`,
+											message: 'Ви дійсно хочете видалити користувача?',
+											action: 'Видалити',
+											itemId: person.id
+										}}
+									/>
+								</td>
 							</tr>
 						{/each}
 					</tbody>

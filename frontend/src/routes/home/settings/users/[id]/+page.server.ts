@@ -1,15 +1,22 @@
-import type { PageServerLoad } from './$types';
+import type { PageServerLoad } from "./$types";
 
-export const load: PageServerLoad = async ({ depends, locals: { supabase }, params }) => {
-	depends('supabase:db:staff');
+export const load: PageServerLoad = async (
+	{ depends, locals: { supabase }, params },
+) => {
+	depends("supabase:db:staff");
 	const userId = params.id;
-	const { data: user , error } = await supabase
-		.from('staff')
-		.select('*,roles(name),trading_points(*)')
-		.eq('id', userId);
+	const { data: user } = await supabase
+		.from("staff")
+		.select("*,roles(name),trading_points(*)")
+		.eq("id", userId).single();
 
-	if (error) {
-		return { user: {} };
-	}
-	return { user: user ?? {} };
+	depends("supabase:db:roles");
+	const { data: roles } = await supabase.from("roles").select("*").order(
+		"name",
+	);
+
+	depends("supabase:db:trading-points");
+	const { data: points } = await supabase.from("trading_points").select("*")
+		.order("name");
+	return { user: user ?? {}, roles: roles ?? [], points: points ?? [] };
 };
