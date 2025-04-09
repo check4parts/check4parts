@@ -12,3 +12,13 @@
 :root {
 	scrollbar-color: var(--color-surface-300) var(--color-surface-50);
 }
+
+.shadow-none {
+	box-shadow: none !important;
+}
+
+.\*\:shadow-none {
+	* {
+		box-shadow: none !important;
+	}
+}
