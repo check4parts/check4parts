@@ -6,7 +6,8 @@
 		placeholder,
 		required = false,
 		value = $bindable(),
-		missing = false
+		missing = false,
+		disabled = false
 	}: {
 		lable: string;
 		type?: string;
@@ -15,6 +16,7 @@
 		required?: boolean;
 		value?: string;
 		missing?: boolean;
+		disabled?: boolean;
 	} = $props();
 </script>
 
@@ -29,6 +31,7 @@
 		{type}
 		{placeholder}
 		{required}
+		{disabled}
 		bind:value
 	/>
 </label>

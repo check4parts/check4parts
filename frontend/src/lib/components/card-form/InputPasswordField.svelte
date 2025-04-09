@@ -6,7 +6,8 @@
 		required = false,
 		value = $bindable(),
 		repeat_password_invalid = $bindable(),
-		missing = false
+		missing = false,
+		disabled = false
 	}: {
 		lable: string;
 		name: string;
@@ -16,6 +17,7 @@
 		showPassword?: boolean;
 		repeat_password_invalid?: boolean;
 		missing?: boolean;
+		disabled?: boolean;
 	} = $props();
 
 	let showPassword = $state(false);
@@ -38,6 +40,7 @@
 		type={showPassword ? 'text' : 'password'}
 		{placeholder}
 		{required}
+		{disabled}
 		bind:value
 		oninput={(e: Event) => {
 			const target = e.target as HTMLInputElement;

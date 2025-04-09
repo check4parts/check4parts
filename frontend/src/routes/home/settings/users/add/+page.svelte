@@ -3,6 +3,8 @@
 	import InputPasswordField from '$lib/components/card-form/InputPasswordField.svelte';
 	import InputSelect from '$lib/components/card-form/InputSelect.svelte';
 	import InputTextField from '$lib/components/card-form/InputTextField.svelte';
+	import { redirect } from '@sveltejs/kit';
+	import toast from 'svelte-french-toast';
 
 	let { data, form } = $props();
 	let { points, roles } = $derived(data);
@@ -13,10 +15,35 @@
 	let repeat_password_invalid = $derived<boolean>(password !== repeat_password);
 
 	$inspect(form);
+
+	$effect(() => {
+		if (form?.success) {
+			location.href = '/home/settings/users?success';
+		}
+		if (form?.error) {
+			if (form.error === 'user_already_exists') {
+				toast.error('Користувач з такою поштою вже існує');
+			} else if (form.error === 'weak_password') {
+				toast.error('Пароль має містити мінімум 6 символів');
+			} else {
+				toast.error('Помилка при додаванні користувача');
+			}
+		}
+		if (form?.missing) {
+			toast.error('Заповніть всі поля');
+		}
+	});
 </script>
 
 <header class="flex items-center justify-between">
 	<h2 class="h3">Додавання користувача</h2>
+	<button
+		type="button"
+		class="btn preset-filled-primary-950-50"
+		onclick={() => {
+			location.href = '/home/settings/users?success';
+		}}>Тест</button
+	>
 </header>
 
 <section class="m-5">
@@ -71,7 +98,7 @@
 					/>
 					<InputSelect
 						label="Адреса місця роботи"
-						name="training_point"
+						name="trading_point"
 						placeholder="Оберіть локацію, де працює користувач"
 						items={points.map((point) => ({
 							label: `${point.name} (${point.street}, ${point.locality})`,

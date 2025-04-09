@@ -1,8 +1,31 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import EdidDeleteElementMenu from '$lib/components/table/EditDeleteModel.svelte';
+	import toast from 'svelte-french-toast';
 
-	let { data } = $props();
+	let { data, form } = $props();
 	let { staff } = $derived(data);
+
+	const isSuccess = page.url.searchParams.has('success');
+	$effect(() => {
+		if (isSuccess) {
+			toast.success('Користувача успішно додано', {
+				duration: 2000
+			});
+		}
+		if (form) {
+			if (form.success) {
+				toast.success('Користувача успішно видалено', {
+					duration: 2000
+				});
+			}
+			if (!form.success) {
+				toast.error('Помилка при видаленні користувача', {
+					duration: 2000
+				});
+			}
+		}
+	});
 
 	let search = $state<string>('');
 	let searchQuery = $derived(search.toLocaleLowerCase());
@@ -12,7 +35,7 @@
 				person.first_name,
 				person.last_name,
 				person.middle_name,
-				person.roles.name,
+				person.roles?.name,
 				person.trading_points?.name,
 				person.trading_points?.street,
 				person.trading_points?.locality
@@ -49,7 +72,7 @@
 {#if staff.length > 0}
 	<section class="flex flex-col gap-4">
 		<div class="border-primary-950 overflow-hidden rounded-xl border-2">
-			<div class="max-h-[75vh] overflow-y-auto">
+			<div class="max-h-[70vh] overflow-y-auto">
 				<table class="table min-w-full border-collapse">
 					<thead class="bg-primary-950 sticky top-0 z-10">
 						<tr class="text-primary-50">
@@ -77,7 +100,7 @@
 										deleteModalConfigs={{
 											title: `Видалення користувача ${person.first_name}`,
 											message: 'Ви дійсно хочете видалити користувача?',
-											action: 'Видалити',
+											action: '?/delete',
 											itemId: person.id
 										}}
 									/>

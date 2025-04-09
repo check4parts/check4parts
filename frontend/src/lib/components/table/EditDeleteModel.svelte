@@ -34,10 +34,9 @@
 <!-- {#if deleteModalOpenState} -->
 <!-- {/if} -->
 
-
 <ConfirmDeleteModal {...deleteModalConfigs!} bind:open={deleteModalOpenState} />
 
-	<Tooltip.Provider>
+<Tooltip.Provider>
 	<Tooltip.Root delayDuration={200}>
 		<Tooltip.Trigger class="hidden group-hover:block">
 			<img src="/small-menu-icon.svg" alt="edit" class="size-4" />
