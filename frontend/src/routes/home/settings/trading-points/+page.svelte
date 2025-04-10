@@ -1,7 +1,8 @@
 <script lang="ts">
+	import EditDeleteModel from '$lib/components/table/EditDeleteModel.svelte';
+	import toast from 'svelte-french-toast';
 	import type { PageProps } from './$types';
 	import AddEditPointModal from './AddEditPointModal.svelte';
-	import EdidDeleteElementMenu from './EdidDeleteElementMenu.svelte';
 
 	let { data, form }: PageProps = $props();
 	let { points } = $derived(data);
@@ -48,7 +49,24 @@
 										{point.locality}
 										{point.street}
 									</p>
-									<EdidDeleteElementMenu {point} {form} />
+									<EditDeleteModel
+										deleteModalConfigs={{
+											title: `Видалення торгової точки ${point.name}`,
+											message: 'Ви дійсно хочете видалити торгову точку?',
+											action: '?/delete',
+											itemId: point.id
+										}}
+									>
+										{#snippet editModal(closeModal)}
+											<AddEditPointModal
+												openState={true}
+												modalClose={closeModal}
+												type="edit"
+												{point}
+												{form}
+											/>
+										{/snippet}
+									</EditDeleteModel>
 								</td>
 							</tr>
 						{/each}

@@ -71,7 +71,7 @@
 					/>
 					<InputSelect
 						label="Адреса місця роботи"
-						name="training_point"
+						name="trading_point"
 						placeholder="Оберіть локацію, де працює користувач"
 						items={points.map((point) => ({
 							label: `${point.name} (${point.street}, ${point.locality})`,

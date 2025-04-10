@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Tooltip } from 'bits-ui';
-	import type { Snippet } from 'svelte';
+	import type { Component, Snippet } from 'svelte';
 	import ConfirmDeleteModal from '../modals/ConfirmDeleteModal.svelte';
 
 	interface Props {
@@ -10,7 +10,7 @@
 		deleteOnClick?: () => void;
 		editLink?: string;
 		deleteLink?: string;
-		editModal?: Snippet;
+		editModal?: Snippet<[closeModal: () => void]>;
 		deleteModal?: Snippet;
 		deleteModalConfigs?: {
 			title: string;
@@ -27,14 +27,18 @@
 		deleteOnClick,
 		editLink,
 		deleteLink,
-		deleteModalConfigs
+		deleteModalConfigs,
+		editModal
 	}: Props = $props();
 </script>
 
-<!-- {#if deleteModalOpenState} -->
-<!-- {/if} -->
+{#if deleteModalConfigs && deleteModalOpenState}
+	<ConfirmDeleteModal {...deleteModalConfigs!} open={deleteModalOpenState} />
+{/if}
 
-<ConfirmDeleteModal {...deleteModalConfigs!} bind:open={deleteModalOpenState} />
+{#if editModal && editModalOpenState}
+	{@render editModal(() => (editModalOpenState = false))}
+{/if}
 
 <Tooltip.Provider>
 	<Tooltip.Root delayDuration={200}>
@@ -46,7 +50,9 @@
 				{#if editLink}
 					<a href={editLink} class="px-2">Редагувати</a>
 				{:else}
-					<button class="px-2" onclick={() => editOnClick?.() || (editModalOpenState = true)}
+					<button
+						class="px-2"
+						onclick={() => editOnClick?.() || (editModalOpenState = !editModalOpenState)}
 						>Редагувати</button
 					>
 				{/if}

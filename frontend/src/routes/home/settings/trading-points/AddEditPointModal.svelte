@@ -23,7 +23,7 @@
 	let nameAlreadyExists = $state(false);
 
 	let {
-		openState = $bindable(),
+		openState = $bindable(false),
 		modalClose = () => {
 			nameAlreadyExists = false;
 			openState = false;
@@ -35,6 +35,7 @@
 
 	onMount(() => {
 		console.log(point?.id);
+		console.log(openState);
 		nameAlreadyExists = false;
 		form = undefined;
 	});

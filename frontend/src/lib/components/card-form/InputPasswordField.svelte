@@ -51,6 +51,7 @@
 		type="button"
 		class="absolute top-[43%] right-4"
 		onmousedown={() => (showPassword = !showPassword)}
+		{disabled}
 	>
 		{#if showPassword}
 			<img src="/show-pass.svg" alt="search" class="size-8" />

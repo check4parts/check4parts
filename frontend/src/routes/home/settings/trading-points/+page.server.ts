@@ -78,7 +78,7 @@ export const actions: Actions = {
 			return { success: true, id };
 		}
 	},
-	deleteTradingPoint: async ({ request, locals: { supabase } }) => {
+	delete: async ({ request, locals: { supabase } }) => {
 		const formData = await request.formData();
 		const id = formData.get('id');
 		const { error } = await supabase.from('trading_points').delete().eq('id', id);

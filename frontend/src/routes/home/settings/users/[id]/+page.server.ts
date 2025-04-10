@@ -28,7 +28,7 @@ export const actions = {
 		const role = formData.get('role')?.toString();
 		const trading_point = formData.get('trading_point')?.toString();
 
-		console.log(id, first_name, last_name, middle_name, phone_number, role, trading_point);
+		console.log({role, trading_point});
 
 		const { error } = await supabase
 			.from('staff')
@@ -36,7 +36,7 @@ export const actions = {
 				first_name: first_name,
 				last_name: last_name,
 				middle_name: middle_name,
-				phone_number: phone_number,
+				phone_number: phone_number, 
 				role_id: role || undefined,
 				trading_point_id: trading_point || undefined
 			})
