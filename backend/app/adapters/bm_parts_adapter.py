@@ -1,15 +1,16 @@
 import httpx
 from fastapi import HTTPException
 
+from app.config import BM_PARTS_TOKEN
+
 
 class BMPartsAdapter:
     BASE_URL = "https://api.bm.parts"
 
     def __init__(self):
-        self.token = ""
+        self.token = BM_PARTS_TOKEN
         self.headers = {
-            "Authorization": "",
-            "User-Agent": "",
+            "Authorization": BM_PARTS_TOKEN,
         }
 
     async def fetch(
@@ -44,7 +45,7 @@ class BMPartsAdapter:
 
     async def get_profile(self):
         url = f"{self.BASE_URL}/profile/me"
-        headers = {"Authorization": self.token, "User-Agent": "FastAPI-BM-Client"}
+        headers = {"Authorization": self.token}
         async with httpx.AsyncClient() as client:
             response = await client.get(url, headers=headers)
             if response.status_code != 200:
@@ -107,16 +108,12 @@ class BMPartsAdapter:
         endpoint = f"/search/products/groups/{group_path}/filters"
         return await self.fetch(endpoint)
 
-    async def get_reserved_products_detailed(self, reserves_uuid: list):
+    async def get_reserved_products_detailed(self, reserves_uuid: list[str]):
         endpoint = "/shopping/reserve/products/detailed"
         json_data = {"reserves_uuid": reserves_uuid}
         return await self.fetch(endpoint, method="POST", data=json_data)
 
-    async def get_unreserved_products_excel(self):
-        endpoint = "/shopping/download/unreserved"
-        return await self.fetch(endpoint)
-
-    async def get_reserved_products(self, reserves_uuid: list):
+    async def get_reserved_products(self, reserves_uuid: list[str]):
         endpoint = "/shopping/reserve/products"
         json_data = {"reserves_uuid": reserves_uuid}
         return await self.fetch(endpoint, method="POST", data=json_data)
@@ -128,13 +125,6 @@ class BMPartsAdapter:
             "comment": comment,
             "warehouse_uuid": warehouse_uuid,
         }
-        return await self.fetch(endpoint, method="POST", data=json_data)
-
-    async def save_unshipped_products_in_cart(
-        self, products: list, cart_name: str = None
-    ):
-        endpoint = "/shopping/create/unshipped"
-        json_data = {"products": products, "cart_name": cart_name}
         return await self.fetch(endpoint, method="POST", data=json_data)
 
     async def get_carts_count(self):
@@ -157,10 +147,10 @@ class BMPartsAdapter:
         }
         return await self.fetch(endpoint, method="POST", data=data)
 
-    async def get_cart_products(self, cart_uuid: str, warehouse: list):
+    async def get_cart_products(self, cart_uuid: str, warehouses: list[str] = None):
         endpoint = "/shopping/cart_products"
-        params = {"cart_uuid": cart_uuid, "warehouse": warehouse}
-        return await self.fetch(endpoint, params=params)
+        json_data = {"cart_uuid": cart_uuid, "warehouses": warehouses}
+        return await self.fetch(endpoint, method="POST", data=json_data)
 
     async def change_cart_owner(self, cart_uuid: str, client_uuid: str):
         endpoint = "/shopping/change_owner"
@@ -223,19 +213,21 @@ class BMPartsAdapter:
 
     async def get_in_stocks(self, product_uuid: str, id_type: str = "id"):
         endpoint = f"/product/{product_uuid}/in_stocks"
-        params = {"id_type": id_type}
+        params = {"id_type": id_type} if id_type is not None else None
         return await self.fetch(endpoint, params=params)
 
     async def get_prices(self, product_uuid: str, id_type: str = "id"):
         endpoint = f"/product/{product_uuid}/prices"
-        params = {"id_type": id_type}
+        params = {"id_type": id_type} if id_type is not None else None
         return await self.fetch(endpoint, params=params)
 
     async def get_price(
         self, product_uuid: str, currency: str = "UAH", id_type: str = "id"
     ):
         endpoint = f"/product/{product_uuid}/price"
-        params = {"currency": currency, "id_type": id_type}
+        params = {"currency": currency}
+        if id_type is not None:
+            params["id_type"] = id_type
         return await self.fetch(endpoint, params=params)
 
     async def get_product_info(
@@ -243,14 +235,14 @@ class BMPartsAdapter:
         product_uuid: str,
         warehouses: str = "all",
         currency: str = "UAH",
-        id_type: str = "id",
+        id_type: str = None,
         products_as: str = "obj",
     ):
         endpoint = f"/product/{product_uuid}"
         params = {
             "warehouses": warehouses,
             "currency": currency,
-            "id_type": id_type,
+            "id_type": id_type if id_type is not None else None,
             "products_as": products_as,
         }
         return await self.fetch(endpoint, params=params)
