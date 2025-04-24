@@ -28,7 +28,7 @@
 			class="data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/80"
 		/>
 		<Dialog.Content
-			class="fixed top-[50%] left-[50%] z-50 w-1/3 translate-x-[-50%] translate-y-[-50%] rounded-xl bg-white p-4"
+			class="fixed top-[50%] left-[50%] z-50 w-fit max-w-1/2 min-w-1/3 translate-x-[-50%] translate-y-[-50%] rounded-xl bg-white p-5"
 		>
 			<div class="absolute top-3 right-4">
 				<button type="button" class="preset-tonal-surface-100" onclick={modalClose}>
@@ -51,11 +51,10 @@
 					<div class="flex h-fit items-center justify-end gap-3">
 						<button
 							type="button"
-							class="btn btn-lg preset-outlined-primary-950-50 font-bold"
+							class="btn preset-outlined-primary-950-50 font-bold"
 							onclick={modalClose}>Скасувати</button
 						>
-						<button type="submit" class="btn btn-lg preset-filled-error-700-300 font-bold"
-							>Видалити</button
+						<button type="submit" class="btn preset-filled-error-700-300 font-bold">Видалити</button
 						>
 					</div>
 				</form>
