@@ -27,7 +27,6 @@
 			}
 		}
 	});
-
 </script>
 
 <ConfirmDeleteModal
@@ -38,7 +37,13 @@
 	bind:open={deleteModalOpen}
 />
 
-<EditModal bind:openState={editModalOpen} data={supplier.data} id={supplier.id} {form} bind:editPage={editPage} />
+<EditModal
+	bind:openState={editModalOpen}
+	data={supplier.data}
+	id={supplier.id}
+	{form}
+	bind:editPage
+/>
 
 <header class="flex items-center justify-end">
 	{#if editPage}

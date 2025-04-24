@@ -37,7 +37,7 @@
 								onmousemove={() => preloadData('/home/settings/suppliers/' + supplier.id)}
 								onclick={() => goto('/home/settings/suppliers/' + supplier.id)}
 								class="divide-primary-950 group hover:bg-primary-50 w-full divide-x-2"
-								class:bg-amber-100={supplier.state === "paused" }
+								class:bg-amber-100={supplier.state === 'paused'}
 							>
 								<td>{supplier.providers.name}</td>
 								<td class="flex gap-5">

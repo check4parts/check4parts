@@ -32,7 +32,6 @@
 	}: Props = $props();
 
 	const comment_field_props = data.find((item) => item.type === 'textarea');
-
 </script>
 
 <Dialog.Root bind:open={openState}>
