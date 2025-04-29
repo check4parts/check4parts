@@ -1,8 +1,19 @@
 <script lang="ts">
+	import toast from 'svelte-french-toast';
 	import AddKeyModal from './(components)/AddKeyModal.svelte';
 
-	let { data } = $props();
-	let { suppliers, added_suppliers } = $derived(data);
+	let { data, form } = $props();
+	let { suppliers } = $derived(data);
+
+	$effect(() => {
+		if (form) {
+			if (form.success) {
+				toast.success('Постачальника успішно додано');
+			} else {
+				toast.error('Помилка при додаванні постачальника');
+			}
+		}
+	});
 </script>
 
 <header class="flex items-center justify-between">
