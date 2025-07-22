@@ -91,6 +91,109 @@ class BMPartsAdapter:
         params = {"q": query, **filters}
         return await self.fetch(endpoint, params)
 
+    async def get_product_details(self, product_uuid: str):
+        endpoint = f"/products/{product_uuid}"
+        return await self.fetch(endpoint)
+
+    async def get_product_crosses(self, product_uuid: str):
+        endpoint = f"/products/{product_uuid}/crosses"
+        return await self.fetch(endpoint)
+
+    async def get_product_additional(self, product_uuid: str):
+        endpoint = f"/products/{product_uuid}/additional"
+        return await self.fetch(endpoint)
+
+    async def get_car_models(self, car_name: str):
+        endpoint = f"/search/products/aggregations/car/{car_name}/models"
+        return await self.fetch(endpoint)
+
+    async def get_car_engines(self, car_name: str, model_name: str):
+        endpoint = f"/search/products/aggregations/car/{car_name}/model/{model_name}"
+        return await self.fetch(endpoint)
+
+    async def get_group_filters(self, group_path: str):
+        endpoint = f"/search/products/groups/{group_path}/filters"
+        return await self.fetch(endpoint)
+
+    async def get_search_suggests(self, query: str, products_as: str = "obj"):
+        endpoint = "/search/suggests"
+        return await self.fetch(endpoint, {"q": query, "products_as": products_as})
+
+    async def search_products_enhanced(
+        self,
+        query: str,
+        include_crosses: bool = False,
+        include_additional: bool = False,
+        **filters,
+    ):
+        basic_results = await self.search_products(query, **filters)
+
+        if not (include_crosses or include_additional):
+            return basic_results
+
+        if "products" in basic_results:
+            products_data = basic_results["products"]
+
+            if isinstance(products_data, dict):
+                products_list = list(products_data.items())
+            else:
+                products_list = [
+                    (str(i), product) for i, product in enumerate(products_data)
+                ]
+
+            for product_id, product_data in products_list:
+                product_uuid = product_data.get("uuid")
+
+                if product_uuid:
+                    try:
+                        if include_crosses:
+                            crosses_data = await self.get_product_crosses(product_uuid)
+                            if crosses_data:
+                                product_data["crosses"] = crosses_data
+
+                        if include_additional:
+                            additional_data = await self.get_product_additional(
+                                product_uuid
+                            )
+                            if additional_data:
+                                product_data["additional"] = additional_data
+
+                    except Exception as e:
+                        print(f"Warning: Could not enhance product {product_uuid}: {e}")
+                        continue
+
+        return basic_results
+
+    async def get_warehouse_stocks(
+        self, product_uuid: str, warehouse_ids: list[str] = None
+    ):
+        params = {"uuid": product_uuid}
+        if warehouse_ids:
+            params["warehouses"] = warehouse_ids
+
+        endpoint = "/products/stocks"
+        return await self.fetch(endpoint, params)
+
+    async def get_product_prices(self, product_uuid: str, currency: str = None):
+        params = {"uuid": product_uuid}
+        if currency:
+            params["currency"] = currency
+
+        endpoint = "/products/prices"
+        return await self.fetch(endpoint, params)
+
+    async def search_by_vin(self, vin: str):
+        endpoint = "/search/suggests"
+        return await self.fetch(endpoint, {"q": vin})
+
+    async def get_delivery_options(self, product_uuid: str, warehouse_id: str = None):
+        params = {"uuid": product_uuid}
+        if warehouse_id:
+            params["warehouse"] = warehouse_id
+
+        endpoint = "/products/delivery"
+        return await self.fetch(endpoint, params)
+
     async def search_suggestions(self, query: str, products_as: str = "obj"):
         endpoint = "/search/suggests"
         params = {"q": query, "products_as": products_as}

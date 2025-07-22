@@ -17,6 +17,67 @@ class CartsWarehousesRequest(BaseModel):
     warehouses: list[str]
 
 
+class PartDetail(BaseModel):
+    id: str = None
+    value: str
+    title: str
+    name: str = None
+
+
+class PartCross(BaseModel):
+    id: str
+    name: str
+    code: str
+    brand: str
+    description: str
+
+
+class PartAdditional(BaseModel):
+    id: str
+    name: str
+    code: str
+    min_quantity: int
+
+
+class Part(BaseModel):
+    id: str
+    name: str
+    code: str
+    description: str
+    image: str
+    brand: str
+    details: list[PartDetail]
+    crosses: list[PartCross] = None
+    additional: list[PartAdditional] = None
+
+
+class Provider(BaseModel):
+    id: str = None
+    name: str
+    short_name: str = None
+
+
+class Warehouse(BaseModel):
+    id: str = None
+    name: str
+    short_name: str = None
+    type: str = None  # 'in-stock' | 'in-waiting' | 'in-other'
+
+
+class Rest(BaseModel):
+    id: str = None
+    provider: Provider
+    warehouse: Warehouse
+    quantity: int
+    delivery_time: str
+    price: float
+
+
+class SearchProductsResponse(BaseModel):
+    part: Part
+    rests: list[Rest]
+
+
 @router.get("/profile/me/")
 async def get_bm_parts_profile():
     adapter = BMPartsAdapter()
