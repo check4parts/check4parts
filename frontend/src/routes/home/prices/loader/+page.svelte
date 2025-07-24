@@ -43,6 +43,7 @@
 	let transformedData: TransformedItem[] = $state.raw([]);
 	let fileTransformed = $state(false);
 	let hashFullTransformedData = $state('');
+	let loadedId: string | null = $state(null);
 	let processingMessage = $state('');
 	let processingPercentage = $state(0);
 	let errorMessage = $state('');
@@ -56,7 +57,8 @@
 	);
 
 	// Нова змінна стану для зберігання промісу перевірки хешу
-	let hashCheckPromise: Promise<any[]> | null = $state(null);
+	let hashCheckPromise: Promise<{ loaded_id: string | null; hashExists: any[] }> | null =
+		$state(null);
 
 	$effect(() => {
 		mappedHeaders = autoMapHeaders(firstRowHeaders, currentProviderWarehouses);
@@ -68,18 +70,32 @@
 	}
 
 	async function checkHashExists(hash: string) {
-		const { data: hashCheckData, error: hashCheckError } = await data.supabasePrices
+		// 1. Знаходимо loaded_id по hash
+		let { data: loaded_prices, error } = await data.supabasePrices
+  		.from('loaded_prices')
+  		.select('id')
+			.eq('hash', hash)
+			.single()
+
+		console.log('Loaded ID:', loaded_prices?.id);
+		loadedId = loaded_prices?.id || null;
+		if (!loadedId) {
+			return {
+				loaded_id: null,
+				hashExists: []
+			};
+		}
+
+		// 2. Знаходимо всі price_history з цим loaded_id
+		const { data: priceData } = await data.supabasePrices
 			.from('price_history')
 			.select('id', { count: 'exact' })
-			.eq('hash', hash)
-			.eq('provider_id', selected_provider)
-			.eq('status', 'actual');
-
-		if (hashCheckError) {
-			throw new Error(`Помилка перевірки історії цін: ${hashCheckError.message}`);
-		}
-		console.log('Hash Check Data:', hashCheckData);
-		return hashCheckData;
+			.eq('loaded_id', loadedId);
+		console.log('Hash Check Data:', priceData);
+		return {
+			loaded_id: loadedId || null,
+			hashExists: priceData || []
+		};
 	}
 
 	async function handleFileUpload(event: Event) {
@@ -185,6 +201,7 @@
 			await startWorkerUpload(
 				transformedData,
 				$state.snapshot(hashFullTransformedData),
+				loadedId,
 				selected_provider,
 				$state.snapshot(settings),
 				data.session?.access_token || '',
@@ -259,7 +276,7 @@
 	<h3 class="mb-4 flex items-center justify-between text-xl font-semibold text-gray-800">
 		Налаштування
 		<button
-			class="rounded-full p-1 transition-all duration-200 hover:bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+			class="rounded-full p-1 transition-all duration-200 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
 			onclick={toggleSettingsCollapse}
 			aria-expanded={!settingsCollapsed}
 			aria-label={settingsCollapsed ? 'Розгорнути налаштування' : 'Згорнути налаштування'}
@@ -290,7 +307,7 @@
 					bind:value={settings.startFrom}
 					placeholder="Наприклад, 2"
 					required
-					class="block w-full rounded-lg border border-gray-300 px-4 py-2 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500"
+					class="block w-full rounded-lg border border-gray-300 px-4 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500"
 				/>
 				<p class="mt-1 text-sm text-gray-500">
 					Вкажіть номер рядка, з якого почнеться обробка даних у файлі.
@@ -307,7 +324,7 @@
 					min="1"
 					bind:value={settings.chunkSize}
 					required
-					class="block w-full rounded-lg border border-gray-300 px-4 py-2 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500"
+					class="block w-full rounded-lg border border-gray-300 px-4 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500"
 				/>
 				<p class="mt-1 text-sm text-gray-500">
 					Вкажіть максимальну кількість рядків для обробки в одному чанку. Більші чанки швидші, але
@@ -325,7 +342,7 @@
 					min="1"
 					bind:value={settings.concurrencyLimit}
 					required
-					class="block w-full rounded-lg border border-gray-300 px-4 py-2 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500"
+					class="block w-full rounded-lg border border-gray-300 px-4 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500"
 				/>
 				<p class="mt-1 text-sm text-gray-500">
 					Визначте кількість чанків, які будуть завантажуватися паралельно. Більше паралельних
@@ -413,14 +430,19 @@
 							<i class="fas fa-fingerprint"></i> Хеш: {hashFullTransformedData.slice(0, 8)}
 						</div>
 						{#if hashCheckPromise}
-							{#await hashCheckPromise then hashExists}
-								{#if hashExists.length === 0}
+							{#await hashCheckPromise then data}
+								{#if loadedId}
+									<div class="badge preset-filled-success-50-950 text-md">
+										<i class="fas fa-check"></i> Файл вже є
+									</div>
+								{/if}
+								{#if data.hashExists.length === 0}
 									<div class="badge preset-filled-success-50-950 text-md">
 										<i class="fas fa-check"></i> Хеш не існує
 									</div>
 								{:else}
 									<a
-										href="/home/prices/{hashExists[0].id}"
+										href="/home/prices/{data.hashExists[0].id}"
 										target="_blank"
 										class="badge preset-filled-error-50-950 text-md hover:bg-red-100"
 									>
@@ -431,14 +453,14 @@
 									<button
 										class="btn preset-filled-primary-950-50"
 										onclick={handleUploadToDatabase}
-										disabled={uploadingToDB || !selected_provider || hashExists.length > 0}
+										disabled={uploadingToDB || !selected_provider || data.hashExists.length > 0}
 										aria-busy={uploadingToDB}
 									>
 										{#if uploadingToDB}
 											Завантаження в БД...
 										{:else}
-											{hashExists.length > 0
-												? 'Хеш існує, не можна завантажити'
+											{data.hashExists.length > 0
+												? 'Таки файл ви вже завантажували'
 												: 'Завантажити в БД'}
 										{/if}
 									</button>
@@ -482,7 +504,7 @@
 						{#each fileHeaders as fileHeader}
 							<th
 								scope="col"
-								class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
+								class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
 							>
 								{getColumnDisplayName(fileHeader, true)}
 							</th>
@@ -493,7 +515,7 @@
 					{#each previewData as row}
 						<tr>
 							{#each fileHeaders as fileHeader}
-								<td class="px-6 py-4 text-sm whitespace-nowrap text-gray-900">
+								<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
 									{row[fileHeader]}
 								</td>
 							{/each}
@@ -517,7 +539,7 @@
 						<select
 							id="map-{headerMap.value}"
 							bind:value={mappedHeaders[index].header}
-							class="block w-full rounded-lg border border-gray-300 px-4 py-2 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+							class="block w-full rounded-lg border border-gray-300 px-4 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
 						>
 							<option value="">Не обрано</option>
 							{#each fileHeaders as fileHeader}
@@ -563,27 +585,27 @@
 						<tr>
 							<th
 								scope="col"
-								class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
+								class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
 								>Бренд</th
 							>
 							<th
 								scope="col"
-								class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
+								class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
 								>Код Бренду</th
 							>
 							<th
 								scope="col"
-								class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
+								class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
 								>Ціна</th
 							>
 							<th
 								scope="col"
-								class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
+								class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
 								>Опис</th
 							>
 							<th
 								scope="col"
-								class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
+								class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
 								>Залишки (Склади)</th
 							>
 						</tr>
@@ -591,12 +613,12 @@
 					<tbody class="divide-y divide-gray-200 bg-white">
 						{#each (transformedData as TransformedItem[]).slice(0, 5) as item}
 							<tr>
-								<td class="px-6 py-4 text-sm whitespace-nowrap text-gray-900">{item.brand}</td>
-								<td class="px-6 py-4 text-sm whitespace-nowrap text-gray-900">{item.article}</td>
-								<td class="px-6 py-4 text-sm whitespace-nowrap text-gray-900">{item.price}</td>
-								<td class="px-6 py-4 text-sm whitespace-nowrap text-gray-900">{item.description}</td
+								<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-900">{item.brand}</td>
+								<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-900">{item.article}</td>
+								<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-900">{item.price}</td>
+								<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-900">{item.description}</td
 								>
-								<td class="px-6 py-4 text-sm whitespace-nowrap text-gray-900">
+								<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
 									{#each Object.entries(item.rests) as [warehouseId, count]}
 										<div>
 											{currentProviderWarehouses.find((wh) => wh.id === warehouseId)?.name ||

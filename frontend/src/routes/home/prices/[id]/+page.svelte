@@ -10,9 +10,19 @@
 				<h3 class="text-primary-950 text-lg font-bold">Деталі імпорту прайсу</h3>
 				<div class="mt-2 space-y-1">
 					<p class="text-sm">
-						<span class="text-primary-900 font-medium">ID імпорту:</span>
+						<span class="text-primary-900 font-medium">Історичне ID:</span>
 						<span class="font-mono">{price_history.id}</span>
 					</p>
+					{#if price_history.loaded_prices}
+						<p class="text-sm">
+							<span class="text-primary-900 font-medium">ID імпорту:</span>
+							<span class="font-mono">{price_history.loaded_prices?.id}</span>
+						</p>
+						<p class="text-sm">
+							<span class="text-primary-900 font-medium">HASH імпорту:</span>
+							<span class="font-mono">{price_history.loaded_prices?.hash}</span>
+						</p>
+					{/if}
 					<p class="text-sm">
 						<span class="text-primary-900 font-medium">Дата:</span>
 						{new Date(price_history.created_at).toLocaleDateString('uk-UA', {
@@ -46,19 +56,6 @@
 							<span class="text-primary-900 font-medium">Статус:</span>
 							<span class="rounded-full bg-red-100 px-2 py-1 text-xs text-red-800"> Видалено </span>
 						</p>
-						<p class="text-sm">
-							<span class="text-primary-900 font-medium">Chunk ID:</span>
-							{price_history.chunk_id || 'Не вказано'}
-							<button
-								class="btn bg-primary-200-800 ml-2"
-								onclick={() => {
-									// Додайте логіку для видалення прайсу
-									alert('Відновлення прайсу не реалізовано');
-								}}
-							>
-								Відновити
-							</button>
-						</p>
 					{/if}
 				</div>
 			</div>
@@ -68,7 +65,7 @@
 
 {#if price_history.status !== 'deleted'}
 	<div class="border-primary-950 mt-5 overflow-hidden rounded-xl border-2">
-		<div class="max-h-[60vh] overflow-y-auto">
+		<div class="max-h-[55vh] overflow-y-auto">
 			<table class="table min-w-full border-collapse">
 				<thead class="bg-primary-950 sticky top-0 z-10">
 					<tr class="text-primary-50">

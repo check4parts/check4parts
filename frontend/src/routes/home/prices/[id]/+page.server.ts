@@ -4,11 +4,11 @@ export const load: PageServerLoad = async ({ locals: { supabasePrices }, request
 	const history_id = params.id;
 	const { data: price_history, error: historyError } = await supabasePrices
 		.from('price_history')
-		.select('*, providers(*)')
+		.select('*, providers(*),loaded_prices(*)')
 		.eq('id', history_id)
 		.single();
 
-	if (price_history.status === 'actual') {
+	if (price_history.status === 'actual' || price_history.status === 'cloned') {
 		const {
 			data: price,
 			error,
@@ -16,7 +16,7 @@ export const load: PageServerLoad = async ({ locals: { supabasePrices }, request
 		} = await supabasePrices
 			.from('prices')
 			.select('*', { count: 'exact' })
-			.eq('history_id', history_id)
+			.eq('loaded_id', price_history.loaded_id)
 			.limit(100);
 
 		const { data: warehouses, error: warehousesError } = await supabasePrices

@@ -18,9 +18,9 @@
 			</thead>
 			<tbody class="!divide-primary-950 !divide-y-2">
 				{#each price_history as entry (entry.id)}
-					<tr class="divide-primary-950 hover:bg-primary-50 group w-full divide-x-2">
-						<td class="p-2">
-							{#if entry.status === 'actual' || entry.status === 'deleted'}
+				<tr class="divide-primary-950 hover:bg-primary-50 group w-full divide-x-2">
+					<td class="p-2">
+							{#if entry.status === 'actual' || entry.status === 'deleted' || entry.status === 'cloned'}
 								<a
 									href={`/home/prices/${entry.id}`}
 									class="font-medium text-blue-600 hover:text-blue-800"
@@ -43,7 +43,7 @@
 						<td class="p-2">{entry.user.first_name || '—'}</td>
 						<td class="p-2">{entry.providers?.name || '—'}</td>
 
-						<td class="p-2">{(entry.hash || '—').slice(0, 8)}</td>
+						<td class="p-2">{(entry.loaded_prices?.hash || '—').slice(0, 8)}</td>
 						<td class="p-2">
 							{#if entry.status === 'uploading'}
 								<span class="rounded-full bg-yellow-100 px-2 py-1 text-xs text-yellow-800">
@@ -56,6 +56,10 @@
 							{:else if entry.status === 'actual'}
 								<span class="rounded-full bg-green-100 px-2 py-1 text-xs text-green-800">
 									Актуальний
+								</span>
+								{:else if entry.status === 'cloned'}
+								<span class="rounded-full bg-green-100 px-2 py-1 text-xs text-green-800">
+									Клонований
 								</span>
 							{:else}
 								<span class="rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-800">

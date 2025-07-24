@@ -14,11 +14,11 @@ export const load: PageServerLoad = async ({ url, locals: { supabasePrices: supa
 
 	const { data, error: fetchError } = await supabase
 		.from('prices')
-		.select('*, providers(*), price_history(*)')
+		.select('*, providers(*)')
 		.eq('article', query)
 		.limit(20);
 
-	const provider_ids = data?.map((p) => p.provider_id).filter(Boolean);
+	const provider_ids = data?.map((p) => p.provider_id);
 
 	const { data: warehouses } = await supabase
 		.from('warehouses')

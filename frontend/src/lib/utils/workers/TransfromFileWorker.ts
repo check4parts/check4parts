@@ -67,7 +67,7 @@ async function calculateHashForTransformedData(
 			JSON.stringify(new Date().getTime().toPrecision(12)) + companyId
 		).toString(CryptoJS.enc.Hex);
 	}
-	return CryptoJS.SHA256(JSON.stringify(transformedData) + companyId).toString(CryptoJS.enc.Hex);
+	return CryptoJS.SHA256(JSON.stringify(transformedData)).toString(CryptoJS.enc.Hex);
 }
 
 function postMessageToMain(message: WorkerMessage) {

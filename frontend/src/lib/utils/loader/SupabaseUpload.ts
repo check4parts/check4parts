@@ -1,5 +1,6 @@
 // src/lib/utils/supabaseUploadManager.ts
 import Worker from '$lib/utils/workers/SupabaseUploadWorker.ts?worker';
+import { parseJwt } from './ParseJWT';
 import type { TransformedItem } from './TransformFile.svelte';
 
 export type AppSettings = {
@@ -17,6 +18,8 @@ export type WorkerMessage =
 				settings: AppSettings;
 				authToken: string;
 				hash: string;
+				loadedId?: string | null;
+				companyId: string;
 				supabaseAnonKey: string;
 				supabaseUrl: string;
 			};
@@ -43,7 +46,7 @@ export type PriceRowForDB = {
 	description: string | null;
 	provider_id: string;
 	rests: any;
-	history_id: string;
+	loaded_id: string;
 };
 
 let uploadWorker: Worker | null = null;
@@ -60,6 +63,7 @@ let currentReject: ((reason?: any) => void) | undefined;
 export async function startWorkerUpload(
 	data: TransformedItem[],
 	hash: string,
+	loadedId: string | null,
 	providerId: string,
 	settings: AppSettings,
 	authToken: string,
@@ -78,6 +82,8 @@ export async function startWorkerUpload(
 			uploadWorker.terminate();
 			uploadWorker = null;
 		}
+
+		const companyId = parseJwt(authToken).company_id; // Replace with actual company ID or pass it as a parameter
 
 		uploadWorker = new Worker();
 
@@ -144,7 +150,9 @@ export async function startWorkerUpload(
 				authToken,
 				supabaseUrl,
 				supabaseAnonKey,
-				hash
+				hash,
+				loadedId,
+				companyId
 			}
 		});
 	});

@@ -7,9 +7,11 @@ export const load: PageServerLoad = async ({ locals: { supabasePrices, supabase 
 
 	const { data: price_history, error } = await supabasePrices
 		.from('price_history')
-		.select('*,providers(*)')
-		.order('status', { ascending: false })
+		.select('*,providers(*),loaded_prices(hash)')
+		.order('status', { ascending: true })
 		.order('created_at', { ascending: false });
+	
+	console.log('Price history data:', price_history);
 
 	const staffMap = new Map(staff!.map((employee) => [employee.user_id, employee]));
 

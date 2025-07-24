@@ -3,6 +3,7 @@
 
 	const { data } = $props();
 	const { warehouses, query, data: results, fetchError } = $derived(data);
+	$inspect(data)
 	let isLoading = $state(false);
 
 	afterNavigate(() => {
@@ -68,6 +69,11 @@
 			>
 		)
 	);
+
+	$inspect(groupedData, {
+		name: 'Grouped Price Data',
+		enabled: Boolean(groupedData)
+	});
 
 	const sortedBrands = $derived(groupedData ? Object.keys(groupedData).sort() : []);
 </script>
@@ -220,18 +226,3 @@
 		{/if}
 	{/if}
 </div>
-
-<style>
-	.line-clamp-2 {
-		display: -webkit-box;
-		-webkit-line-clamp: 2;
-		-webkit-box-orient: vertical;
-		overflow: hidden;
-	}
-	.line-clamp-3 {
-		display: -webkit-box;
-		-webkit-line-clamp: 3;
-		-webkit-box-orient: vertical;
-		overflow: hidden;
-	}
-</style>
