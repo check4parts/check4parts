@@ -28,7 +28,13 @@
 			{:else}
 				<div class="grid gap-6">
 					{#each parts as part (part.code)}
-						<SearchResultCard {part} rests={part.rests} />
+						{#await part.rests}
+							<SearchResultCard {part} rests={[]} />
+						{:then data}
+							<SearchResultCard {part} rests={data.rests} />
+						{:catch error}
+						 	{JSON.stringify(error)}
+						{/await}
 					{/each}
 				</div>
 			{/if}

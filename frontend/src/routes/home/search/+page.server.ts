@@ -1,11 +1,7 @@
-// import { createClient } from '@supabase/supabase-js'; // ЦЕЙ РЯДОК НЕ ПОТРІБЕН
-// import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } from '$env/static/private'; // ЦЕЙ РЯДОК НЕ ПОТРІБЕН
-// const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY); // ЦЕЙ РЯДОК НЕ ПОТРІБЕН
-
+import { restsInPrices } from '$lib/utils/adapter/restsInPrices';
 import type { PageServerLoad } from './$types';
 
-// Змінено: отримуємо supabase з locals
-export const load: PageServerLoad = async ({ url, locals: { supabaseTecdoc: supabase } }) => {
+export const load: PageServerLoad = async ({ url, locals: { supabaseTecdoc: supabase, supabasePrices } }) => {
 	const searchQuery = url.searchParams.get('q');
 
 	let partsPromise: Promise<any[]>;
@@ -35,6 +31,7 @@ export const load: PageServerLoad = async ({ url, locals: { supabaseTecdoc: supa
 				throw new Error('Failed to perform search: ' + articlesError.message);
 			}
 
+
 			if (articlesData) {
 				return articlesData.map((article) => ({
 					name: article.NormalizedDescription || 'Без опису',
@@ -44,7 +41,7 @@ export const load: PageServerLoad = async ({ url, locals: { supabaseTecdoc: supa
 					id: article.DataSupplierArticleNumber || 'N/A',
 					code: article.id?.toString() || '',
 					image: '/image 7.png',
-					rests: []
+					rests: restsInPrices(supabasePrices, article.DataSupplierArticleNumber, article.suppliers?.MatchCode)
 				}));
 			}
 			return [];
