@@ -1,65 +1,78 @@
 <script lang="ts">
-	let { data } = $props();
-	let { user, staff } = $derived(data);
+	import toast from 'svelte-french-toast';
+	import EditNameModal from './(components)/EditNameModal.svelte';
+	import ContacInformationCard from './(components)/ContacInformationCard.svelte';
+	import SafetyCard from './(components)/SafetyCard.svelte';
+
+	let { data, form } = $props();
+	let { user, staff, points, roles } = $derived(data);
+
+	let editNameOpenState = $state(false);
+	let contactsCardState = $state<'view' | 'edit'>('view');
+
+	let emailToConfirm = $derived(!!form?.email_sent);
+
+	$effect(() => {
+		if (form) {
+			if (form?.success) {
+				if (form?.message === 'name_updated') {
+					editNameOpenState = false;
+				}
+				if (form?.message === 'contacts_updated') {
+					contactsCardState = 'view';
+				}
+				if (emailToConfirm) {
+					toast.success('Пітдвердіть дію на пошті', {
+						duration: 5000
+					});
+				}
+				toast.success('Дані успішно оновлені', {});
+			} else {
+				toast.error('Помилка при оновленні даних', {});
+			}
+		}
+	});
 </script>
 
-{#snippet tableRow(name: string, value: string | undefined, badge: boolean = false)}
-	<div class="flex items-center gap-4">
-		<h4 class="text-surface-200 w-40 font-bold">{name}</h4>
-		<p class={badge ? 'badge preset-filled-success-200-800' : 'text-primary-950-50'}>
-			{value ? value : 'Не вказано'}
-		</p>
-	</div>
-{/snippet}
+<EditNameModal
+	bind:openState={editNameOpenState}
+	id={staff.id}
+	data={{
+		first_name: staff.first_name,
+		last_name: staff.last_name,
+		middle_name: staff.middle_name
+	}}
+/>
 
 <section class="mx-auto h-full w-[95%]">
 	<div class="grid grid-cols-[auto_1fr] grid-rows-2 items-center gap-4">
 		<div class="row-span-2 flex h-40 w-40 items-center justify-center p-2">
 			<img src="/avatar.svg" alt="Аватар" class="h-full w-full object-contain" />
 		</div>
-		<h2 class="self-end text-2xl font-medium text-gray-800">
-			{staff.first_name}
-			{staff.last_name}
-			{staff.middle_name}
-		</h2>
-	</div>
-
-	<div
-		class="shadow-surface-50 mx-auto mt-6 rounded-xl p-8 shadow-[0px_0px_9px_17px_rgba(0,_0,_0,_0.1)]"
-	>
-		<header class="mb-4 flex items-center justify-between rounded-xl">
-			<h3 class="h5">Контактана інформація</h3>
-			<button type="button" class="btn preset-outlined-primary-950-50 !border-2 font-bold"
-				>Редагувати</button
-			>
-		</header>
-		<div class="flex flex-col gap-4">
-			{@render tableRow('Емейл', user?.email)}
-			{@render tableRow('Телефон', staff.phone_number)}
-			{@render tableRow('Торгова точка', staff.trading_points?.name)}
-			{@render tableRow('Роль', staff.roles.name, true)}
+		<div class="flex items-center gap-2">
+			<h2 class="self-end text-2xl font-medium text-gray-800">
+				{staff.last_name}
+				{staff.first_name}
+				{staff.middle_name}
+			</h2>
+			<button type="button" class="btn-icon size-7 p-0" onclick={() => (editNameOpenState = true)}>
+				<img class="size-7" src="/edit-button-icon.svg" alt="edit" width="28" height="28" />
+			</button>
 		</div>
 	</div>
-	{#if user}
-		<div
-			class="mt-15 shadow-surface-50 mx-auto rounded-xl p-8 shadow-[0px_0px_9px_17px_rgba(0,_0,_0,_0.1)]"
-		>
-			<header class="mb-4 flex items-center justify-between rounded-xl">
-				<h3 class="h5">Безпека</h3>
-			</header>
-			<div class="flex flex-col gap-4">
-				{@render tableRow(
-					'Останній вхід',
-					user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleString('uk') : 'Ніколи'
-				)}
-				{@render tableRow('Дата реєстрації', new Date(user.created_at).toLocaleDateString('uk'))}
-				<div class="flex items-center gap-4">
-					<h4 class="text-surface-200 w-40 font-bold">Пароль</h4>
-					<button type="button" class="btn-sm rounded-md preset-outlined-primary-950-50 !border-2 font-bold"
-						>Змінити</button
-					>
-				</div>
-			</div>
-		</div>
-	{/if}
+	<ContacInformationCard
+		staff={{
+			id: staff.id,
+			user_id: staff.user_id,
+			email: user?.email,
+			phone_number: staff.phone_number,
+			trading_point: staff.trading_points,
+			role: staff.roles
+		}}
+		bind:cardState={contactsCardState}
+		tarading_points={points}
+		{roles}
+		emailConfirmToChange={emailToConfirm}
+	/>
+	<SafetyCard last_login={user?.last_sign_in_at} bind:form />
 </section>

@@ -21,7 +21,11 @@
 </script>
 
 <label class="label">
-	<span class="text-sm">{lable}</span>
+	<h6 class="h6">{lable}
+		{#if required}
+			<span>*</span>
+		{/if}
+	</h6>
 	<input
 		class:border-error-400={missing && !value}
 		class:border={missing && !value}

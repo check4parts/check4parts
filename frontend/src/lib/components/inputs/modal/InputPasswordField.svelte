@@ -31,7 +31,11 @@
 </script>
 
 <label class="label relative block w-full">
-	<span class="text-sm">{lable}</span>
+	<h6 class="h6">{lable}
+		{#if required}
+			<span>*</span>
+		{/if}
+	</h6>
 	<input
 		class:border-error-400={invalid}
 		class:border={invalid}
@@ -49,7 +53,7 @@
 	/>
 	<button
 		type="button"
-		class="absolute top-[43%] right-4"
+		class="absolute top-[47%] right-4"
 		onmousedown={() => (showPassword = !showPassword)}
 		{disabled}
 	>
