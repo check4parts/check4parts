@@ -67,6 +67,7 @@ class UploadPhotoRequest(BaseModel):
     data: str = Field(..., description="Base64 encoded image data")
     file_name: str = Field(..., description="File name with .jpg extension")
 
+
 class GetKindClaimsRequest(BaseModel):
     product_id: str = Field(..., description="Product ID")
     doc_id: str = Field(..., description="Document ID")
