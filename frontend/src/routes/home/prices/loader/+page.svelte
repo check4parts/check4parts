@@ -21,7 +21,7 @@
 	let company_id = $derived<string>(parseJwt(data.session?.access_token || '')?.company_id || '');
 
 	let selected_provider = $state<string>('');
-	let files: FileList | null = $state(null);
+	let files: File[]  = $state([]);
 	let fileLoading = $state(false);
 	let transformingData = $state(false);
 

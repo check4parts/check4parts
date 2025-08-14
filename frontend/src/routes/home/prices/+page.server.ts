@@ -15,12 +15,9 @@ export const load: PageServerLoad = async ({ locals: { supabasePrices, supabase 
 
 	const staffMap = new Map(staff!.map((employee) => [employee.user_id, employee]));
 
-	// Об'єднуємо дані
 	const enrichedPriceHistory = price_history!.map((priceEntry) => ({
 		...priceEntry,
-		// Додаємо інформацію про співробітника
 		user: staffMap.get(priceEntry.user_id) || null,
-		// Додаємо ім'я постачальника з пов'язаної таблиці
 		provider_name: priceEntry.providers?.name || null
 	}));
 

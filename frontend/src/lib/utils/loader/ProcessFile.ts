@@ -1,7 +1,7 @@
 import Worker from '$lib/utils/workers/FileProcessWorker.ts?worker';
 
 export const processFile = async (
-	files: FileList,
+	files: File[],
 	startFrom: number,
 	previewRows: number = 5,
 	startPreviewFrom: number = 0,

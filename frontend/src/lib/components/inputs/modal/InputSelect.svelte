@@ -8,7 +8,7 @@
 
 	interface Props {
 		items: ItemData[];
-		label: string;
+		label?: string;
 		placeholder: string;
 		name: string;
 		value?: string;
@@ -28,19 +28,19 @@
 		intialValue
 	}: Props = $props();
 
-	let selectedCountry = $state<string[]>([]);
+	let selectedValue = $state<string[]>([]);
 
 	$effect(() => {
-		value = selectedCountry[0];
+		value = selectedValue[0];
 	});
 </script>
 
-<input type="hidden" {name} value={selectedCountry[0]} />
+<input type="hidden" {name} value={selectedValue[0]} />
 
 <Combobox
 	data={items}
-	value={selectedCountry}
-	onValueChange={(e) => (selectedCountry = e.value)}
+	value={selectedValue}
+	onValueChange={(e) => (selectedValue = e.value)}
 	labelClasses="*:text-sm *:font-normal"
 	inputGroupClasses="shadow-none focus-within:outline-2 focus-within:outline-primary-500 h-12 bg-white placeholder:text-gray-400 *:shadow-none *:border-none {missing &&
 	!value
