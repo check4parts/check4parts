@@ -1,4 +1,5 @@
 import Worker from '$lib/utils/workers/TransfromFileWorker.ts?worker';
+import type { Template } from './AutoMap';
 
 export type MappedHeader = {
 	name: string;
@@ -33,6 +34,56 @@ export type WorkerMessage =
 	| { type: 'progress'; payload: { state: 'transforming' | 'hash' } }
 	| { type: 'complete'; payload: { transformedData: TransformedItem[]; hash: string } }
 	| { type: 'error'; payload: { message: string } };
+
+export function transformPreviewData(
+	data: any[],
+	template: Template,
+	selectedProvider: string
+): TransformedItem[] {
+	return data
+		.map((row) => {
+			const transformedRow: TransformedItem = {
+				brand: '',
+				article: '',
+				price: 0,
+				description: '',
+				provider_id: selectedProvider,
+				rests: {}
+			};
+
+			template.template.forEach((templateRow) => {
+				if (templateRow.type === 'prop') {
+					const value = row[templateRow.header] || '';
+					switch (templateRow.value) {
+						case 'article':
+							transformedRow.article = String(value);
+							break;
+						case 'brand':
+							transformedRow.brand = String(value);
+							break;
+						case 'description':
+							transformedRow.description = String(value);
+							break;
+						case 'price':
+							transformedRow.price = 
+								parseFloat(String(value).replace(',', '.')) || -1;
+							break;
+					}
+				} else if (templateRow.type === 'rests') {
+					const warehouseId = templateRow.value;
+					if (templateRow.header) {
+						const restValue = row[templateRow.header] || 0;
+						transformedRow.rests[warehouseId] = restValue;
+					} else {
+						transformedRow.rests[warehouseId] = "Невідомо";
+					}
+				}
+			});
+			return transformedRow.article && transformedRow.price !== -1 ? transformedRow : null;
+		})
+		.filter((item): item is TransformedItem => item !== null);
+}
+
 
 export async function StartTransformFileWorker(
 	fileData: any[],

@@ -1,4 +1,4 @@
-export const IMPORTANT_HEADERS = [
+export const IMPORTANT_HEADERS: TemplateRow[] = [
 	{
 		name: 'Бренд',
 		value: 'brand',
@@ -36,10 +36,25 @@ export const IMPORTANT_HEADERS = [
 	}
 ];
 
+export type TemplateRow = {
+	name: string;
+	value: string;
+	type: 'rests' | 'prop';
+	header: string;
+	aliases?: string[];
+}
+
+export type Template = {
+	template: TemplateRow[];
+	metadata: {
+		firstRowHeaders: boolean;
+	}
+}
+
 export function autoMapHeaders(
 	headers: string[],
 	provider_warehouses: { id: string; name: string }[]
-) {
+): TemplateRow[] {
 	const normalize = (str: string) => str.toLowerCase().replace(/\s+/g, '');
 
 	const matchImportant = (target: string, aliases: string[] = []) => {
