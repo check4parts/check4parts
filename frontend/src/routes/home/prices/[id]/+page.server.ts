@@ -9,33 +9,41 @@ export const load: PageServerLoad = async ({ locals: { supabasePrices }, request
 		.single();
 
 	if (price_history.status === 'actual' || price_history.status === 'cloned') {
-		const {
-			data: price,
-			error,
-			count
-		} = await supabasePrices
-			.from('prices')
-			.select('*', { count: 'exact' })
-			.eq('loaded_id', price_history.loaded_id)
-			.limit(100);
+		const price = new Promise<any[]>((resolve, reject) => {
+			supabasePrices
+				.from('prices')
+				.select('*')
+				.eq('loaded_id', price_history.loaded_id)
+				.limit(100)
+				.then(({ data, error }) => {
+					if (error) resolve([]);
+					else resolve(data);
+				});
+		});
 
-		const { data: warehouses, error: warehousesError } = await supabasePrices
+		const { data: count } = await supabasePrices
+			.from('loaded_prices_with_references')
+			.select('price_rows_count')
+			.eq('loaded_price_id', price_history.loaded_id)
+			.single();
+
+
+		const { data: warehouses } = await supabasePrices
 			.from('warehouses')
 			.select('*')
 			.order('name')
-			.eq('provider_id', price?.[0]?.provider_id || 0);
 
 		return {
-			price: price || [],
+			price: price,
+			count: count?.price_rows_count || 0,
 			price_history: price_history || [],
 			warehouses: warehouses || [],
-			count: count || 0
 		};
 	}
 	return {
-		price: [],
+		price: Promise.resolve([]),
 		price_history: price_history || [],
 		warehouses: [],
-		count: 0
+		count:  0,
 	};
 };

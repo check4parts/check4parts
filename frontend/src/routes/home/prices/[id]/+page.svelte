@@ -1,6 +1,8 @@
 <script>
+	import { json } from '@sveltejs/kit';
+
 	let { data } = $props();
-	let { price, warehouses, price_history, count } = $derived(data);
+	let { price, price_history, warehouses, count } = $derived(data);
 </script>
 
 <div class="border-primary-950 overflow-hidden rounded-xl border-2">
@@ -49,7 +51,7 @@
 						</p>
 						<p class="text-sm">
 							<span class="text-primary-900 font-medium">Кількість:</span>
-							{count || 'Не вказано'} (Відображено: {price?.length})
+							{count} рядків
 						</p>
 					{:else if price_history.status === 'deleted'}
 						<p class="text-sm">
@@ -63,59 +65,70 @@
 	</div>
 </div>
 
-{#if price_history.status !== 'deleted'}
-	<div class="border-primary-950 mt-5 overflow-hidden rounded-xl border-2">
-		<div class="max-h-[55vh] overflow-y-auto">
-			<table class="table min-w-full border-collapse">
-				<thead class="bg-primary-950 sticky top-0 z-10">
-					<tr class="text-primary-50">
-						<th class="p-2">Бренд</th>
-						<th class="p-2">Артикул</th>
-						<th class="p-2">Опис</th>
-						<th class="p-2">Ціна</th>
-						{#each warehouses as warehouse}
-							<th class="p-2">
-								{warehouse.name}
-								{#if warehouse.short_name}
-									<span class="ml-1 text-xs">({warehouse.short_name})</span>
-								{/if}
-							</th>
-						{/each}
-					</tr>
-				</thead>
-				<tbody class="!divide-primary-950 !divide-y-2">
-					{#each price as item (item.id)}
-						<tr class="divide-primary-950 hover:bg-primary-50 group w-full divide-x-2">
-							<td class="p-2 font-medium">{item.brand}</td>
-							<td class="p-2 font-mono">{item.article}</td>
-							<td class="p-2">{item.description}</td>
-							<td class="p-2 font-medium">
-								{new Intl.NumberFormat('uk-UA', {
-									style: 'currency',
-									currency: 'UAH',
-									minimumFractionDigits: 2
-								}).format(item.price)}
-							</td>
-
-							{#each warehouses as warehouse}
-								<td class="p-2 text-center">
-									{#if item.rests[warehouse.id] && item.rests[warehouse.id] !== '0'}
-										<span class="rounded-full bg-green-100 px-2 py-1 text-xs text-green-800">
-											{item.rests[warehouse.id]}
-										</span>
-									{:else}
-										<span class="rounded-full bg-red-100 px-2 py-1 text-xs text-red-800"> 0 </span>
+{#await price}
+	<p class="text-center text-gray-500">Завантаження прайсу...</p>
+{:then prices}
+	{@const localWarehouses = warehouses.filter((w) => {
+		return Object.keys(prices[1]?.rests).includes(w.id);
+	})}
+	{#if price_history.status !== 'deleted'}
+		<div class="border-primary-950 mt-5 overflow-hidden rounded-xl border-2">
+			<div class="max-h-[55vh] overflow-y-auto">
+				<table class="table min-w-full border-collapse">
+					<thead class="bg-primary-950 sticky top-0 z-10">
+						<tr class="text-primary-50">
+							<th class="p-2">Бренд</th>
+							<th class="p-2">Артикул</th>
+							<th class="p-2">Опис</th>
+							<th class="p-2">Ціна</th>
+							{#each localWarehouses as warehouse}
+								<th class="p-2">
+									{warehouse.name}
+									{#if warehouse.short_name}
+										<span class="ml-1 text-xs">({warehouse.short_name})</span>
 									{/if}
-								</td>
+								</th>
 							{/each}
 						</tr>
-					{/each}
-				</tbody>
-			</table>
+					</thead>
+					<tbody class="!divide-primary-950 !divide-y-2">
+						{#each prices as item (item.id)}
+							<tr class="divide-primary-950 hover:bg-primary-50 group w-full divide-x-2">
+								<td class="p-2 font-medium">{item.brand}</td>
+								<td class="p-2 font-mono">{item.article}</td>
+								<td class="p-2">{item.description}</td>
+								<td class="p-2 font-medium">
+									{new Intl.NumberFormat('uk-UA', {
+										style: 'currency',
+										currency: 'UAH',
+										minimumFractionDigits: 2
+									}).format(item.price)}
+								</td>
+
+								{#each localWarehouses as warehouse}
+									<td class="p-2 text-center">
+										{#if item.rests[warehouse.id] && item.rests[warehouse.id] !== '0'}
+											<span class="rounded-full bg-green-100 px-2 py-1 text-xs text-green-800">
+												{item.rests[warehouse.id]}
+											</span>
+										{:else}
+											<span class="rounded-full bg-red-100 px-2 py-1 text-xs text-red-800">
+												0
+											</span>
+										{/if}
+									</td>
+								{/each}
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+			</div>
 		</div>
-	</div>
-{:else}
-	<div class="p-4 text-center text-gray-500">
-		<p>Парайс видалено</p>
-	</div>
-{/if}
+	{:else}
+		<div class="p-4 text-center text-gray-500">
+			<p>Парайс видалено</p>
+		</div>
+	{/if}
+{:catch error}
+	<p class="text-center text-red-500">Помилка завантаження прайсу: {error.message}</p>
+{/await}
