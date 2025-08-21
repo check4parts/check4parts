@@ -1,278 +1,313 @@
-// src/lib/utils/supabaseUploadWorker.ts
+// src/lib/utils/workers/SupabaseUploadWorker.ts
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import type { AppSettings, PriceRowForDB, WorkerMessage } from '../loader/SupabaseUpload';
-import type { TransformedItem } from '../loader/TransformFile.svelte';
+import type { WorkerMessage, PriceRowForDB } from '$lib/utils/loader/SupabaseUpload';
 
-function postMessageToMain(message: WorkerMessage) {
-	self.postMessage(message);
+// === Константи (не змінюємо публічний API) ===
+const MAX_REQUESTS_PER_SECOND = 30;
+const MAX_CHUNK_SIZE = 7000;
+const MAX_RETRIES = 3;
+
+// === Допоміжні утиліти ===
+function sleep(ms: number) {
+	return new Promise((res) => setTimeout(res, ms));
 }
 
-async function deleteOldPrices(supabase: SupabaseClient, providerId: string, historyCreatedAt: string) {
-	const { data } = await supabase
+function isRetryable(error: any) {
+	const code = error?.code ?? error?.status ?? 0;
+	return code === 0 || code === 429 || (code >= 500 && code <= 599);
+}
+
+// рівномірний rate-limit: не більше 10 запусків insert/сек (без burst на межах секунди)
+const SLOT_MS = Math.ceil(1000 / MAX_REQUESTS_PER_SECOND);
+let lastStart = 0;
+let tokens = MAX_REQUESTS_PER_SECOND;
+const refill = setInterval(() => (tokens = MAX_REQUESTS_PER_SECOND), 1000);
+
+async function scheduleStart() {
+	// дочекатись наступного "тайм-слоту"
+	const now = Date.now();
+	const wait = Math.max(0, lastStart + SLOT_MS - now);
+	if (wait) await sleep(wait);
+	lastStart = Date.now();
+
+	// токен-бакет
+	while (tokens <= 0) {
+		await sleep(20);
+	}
+	tokens--;
+}
+
+let lastProgressTs = 0;
+function postProgressThrottled(
+	uploadedCount: number,
+	totalCount: number,
+	message: string
+) {
+	const now = Date.now();
+	// не частіше ~1 разу на 120мс
+	if (now - lastProgressTs < 120) return;
+	lastProgressTs = now;
+	const percentage = Math.max(
+		0,
+		Math.min(100, Math.round((uploadedCount / totalCount) * 100))
+	);
+
+	self.postMessage({
+		type: 'progress',
+		payload: { uploadedCount, totalCount, percentage, message }
+	} satisfies WorkerMessage);
+}
+
+async function ensureLoadedId(
+	supabase: SupabaseClient,
+	loadedId: string | null,
+	hash: string
+): Promise<string> {
+	if (loadedId) return loadedId;
+
+	// idempotent upsert по унікальному hash
+	const { data, error } = await supabase
+		.from('loaded_prices')
+		.upsert({ hash }, { onConflict: 'hash' })
+		.select('id')
+		.single();
+
+	if (error) throw new Error(`Не вдалося отримати/створити loaded_id: ${error.message}`);
+	return data!.id as string;
+}
+
+async function createHistory(
+	supabase: SupabaseClient,
+	providerId: string,
+	loadedId: string,
+	status: 'uploading' | 'cloned'
+): Promise<{ id: string; created_at: string }> {
+	const { data, error } = await supabase
 		.from('price_history')
-		.select('*')
+		.insert({ provider_id: providerId, status, loaded_id: loadedId })
+		.select('id, created_at')
+		.single();
+
+	if (error) throw new Error(`Не вдалося створити price_history: ${error.message}`);
+	return data as { id: string; created_at: string };
+}
+
+async function setHistoryStatus(
+	supabase: SupabaseClient,
+	historyId: string,
+	status: 'actual' | 'failed'
+) {
+	const { error } = await supabase
+		.from('price_history')
+		.update({ status })
+		.eq('id', historyId);
+	if (error) {
+		console.warn(`Помилка оновлення статусу історії (${historyId}): ${error.message}`);
+	}
+}
+
+async function deleteOldPrices(
+	supabase: SupabaseClient,
+	providerId: string,
+	historyCreatedAt: string
+) {
+	// Масове оновлення замість циклу по рядках
+	const { error } = await supabase
+		.from('price_history')
+		.update({ status: 'deleted', loaded_id: null })
 		.eq('provider_id', providerId)
 		.neq('status', 'deleted')
-		.lt('created_at', historyCreatedAt)
+		.lt('created_at', historyCreatedAt);
 
-	console.log('Old price history data to delete:', data);
-	if (data) {
-		for (const item of data) {
-			console.log(`Deleting old price history (${item.id})...`);
-			const { error } = await supabase
-				.from('price_history')
-				.update({ status: 'deleted', loaded_id: null })
-				.eq('id', item.id)
-			console.log(`Deleted old price history (${item.id}):`);
-			if (error) {
-				console.error(`Error deleting old price history (${item.id}):`, error.message);
-			}
-		}
+	if (error) {
+		console.warn('Помилка масового видалення старих записів:', error.message);
 	}
-
 }
 
-async function uploadPricesToSupabaseInWorker(
-	data: TransformedItem[],
-	hash: string,
-	loadedId: string | null,
+// Обчислюємо наступний діапазон індексів (без побудови великих проміжних масивів)
+function makeRangeGetter(total: number, startFrom: number, size: number) {
+	let start = Math.max(0, startFrom);
+	const max = total;
+	return function next(): [number, number] | null {
+		if (start >= max) return null;
+		const s = start;
+		const e = Math.min(max, start + size);
+		start = e;
+		return [s, e];
+	};
+}
+
+function mapRows(
+	data: any[],
+	start: number,
+	end: number,
 	providerId: string,
-	settings: AppSettings,
+	loadedId: string
+): PriceRowForDB[] {
+	const out = new Array<PriceRowForDB>(end - start);
+	for (let i = start, j = 0; i < end; i++, j++) {
+		const it = data[i];
+		out[j] = {
+			brand: it.brand,
+			article: it.article,
+			price: it.price ?? null,
+			description: it.description ? String(it.description) : null,
+			provider_id: providerId,
+			rests: it.rests,
+			loaded_id: loadedId
+		};
+	}
+	return out;
+}
+
+async function insertWithRetry(
 	supabase: SupabaseClient,
-): Promise<void> {
-	const totalCount = data.length;
-	let uploadedCount = 0;
-	const chunkSize = settings.chunkSize;
-	const concurrencyLimit = settings.concurrencyLimit || 5;
-	let historyId: string | null = null;
-	let historyCreatedAt: string | null = null;
+	rows: PriceRowForDB[],
+	maxRetries = MAX_RETRIES
+) {
+	let attempt = 0;
+	// адаптація на лету: якщо отримаємо 413 — зменшимо розмір наступних вставок (робиться в місці виклику)
+	while (true) {
+		await scheduleStart();
+		const { error } = await supabase.from('prices').insert(rows);
+		if (!error) return;
+
+		if (!isRetryable(error) || attempt >= maxRetries) {
+			const msg = error?.message || 'Insert failed';
+			throw new Error(msg);
+		}
+		attempt++;
+		const base = 200 * Math.pow(2, attempt - 1);
+		const jitter = Math.random() * 120;
+		await sleep(base + jitter);
+	}
+}
+
+// === Основний обробник повідомлень ===
+self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
+	if (event.data.type !== 'startUpload') return;
+
+	const {
+		data,
+		providerId,
+		settings,
+		authToken,
+		hash,
+		loadedId: maybeLoadedId,
+		companyId, // не використовується явно: company_id тягнеться з jwt() тригером на БД
+		supabaseUrl,
+		supabaseAnonKey
+	} = event.data.data;
+
+	const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+		global: { headers: { Authorization: `Bearer ${authToken}` } }
+	});
 
 	try {
-		if (loadedId) {
-			postMessageToMain({
-				type: 'progress',
-				payload: {
-					uploadedCount: 0,
-					totalCount,
-					percentage: 0,
-					message: 'Знайдено існуючий запис прайсу, даємо доступ...'
-				}
-			});
+		// 1) гарантуємо loaded_id
+		const loadedId = await ensureLoadedId(supabase, maybeLoadedId ?? null, hash);
 
-			const { data: historyData, error: historyError } = await supabase
-				.from('price_history')
-				.insert({
-					provider_id: providerId,
-					status: 'cloned',
-					loaded_id: loadedId,
-				})
-				.select('id, created_at')
-				.single();
+		// 2) створення history
+		if (maybeLoadedId) {
+			// сценарій cloning: не вантажимо заново, просто робимо історію
+			const hist = await createHistory(supabase, providerId, loadedId, 'cloned');
+			await deleteOldPrices(supabase, providerId, hist.created_at);
+			self.postMessage({ type: 'complete', payload: { totalCount: 0 } });
+			return;
+		}
 
-			console.log('History data:', historyData);
-			historyId = historyData!.id;
-			historyCreatedAt = historyData!.created_at;
+		// uploading: створюємо history зі статусом uploading
+		const history = await createHistory(supabase, providerId, loadedId, 'uploading');
 
-			if (historyError) {
-				throw new Error(
-					`Помилка створення історії цін: ${historyError.message}, ${JSON.stringify(historyError)}, ${providerId}`
-				);
-			}
+		const totalCount = data.length;
+		let uploadedCount = 0;
 
-		} else {
+		// 3) підготовка чанків
+		const CHUNK = Math.max(1, Math.min((settings?.chunkSize ?? MAX_CHUNK_SIZE), MAX_CHUNK_SIZE));
+		const CONC = Math.max(1, settings?.concurrencyLimit ?? 5);
+		const startFrom = Math.max(0, settings?.startFrom ?? 0);
 
-			postMessageToMain({
-				type: 'progress',
-				payload: {
-					uploadedCount: 0,
-					totalCount,
-					percentage: 0,
-					message: 'Створення запису історії завантаження...'
-				}
-			});
-			const { data: loadedData, error: loadedError } = await supabase
-				.from('loaded_prices')
-				.insert({
-					hash: hash,
-				})
-				.select('id')
-				.single();
+		const nextRange = makeRangeGetter(totalCount, startFrom, CHUNK);
 
-			if (loadedError) {
-				throw new Error(
-					`Помилка створення історії цін: ${loadedError.message}, ${JSON.stringify(loadedError)}, ${providerId}`
-				);
-			}
-			const newLoadedId = loadedData.id;
+		// 4) паралельні "воркери" з обмеженням по CONC
+		let dynamicChunkSize = CHUNK; // для адаптації при 413
+		async function runner() {
+			while (true) {
+				const range = nextRange();
+				if (!range) return;
+				const [s, e] = range;
 
-			const { data: historyData, error: historyError } = await supabase
-				.from('price_history')
-				.insert({
-					provider_id: providerId,
-					status: 'uploading',
-					loaded_id: newLoadedId,
-				})
-				.select('id, created_at')
-				.single();
+				let rows = mapRows(data, s, e, providerId, loadedId);
 
-			if (historyError) {
-				throw new Error(
-					`Помилка створення історії цін: ${historyError.message}, ${JSON.stringify(historyError)}, ${providerId}`
-				);
-			}
-			historyId = historyData.id;
-			historyCreatedAt = historyData.created_at;
-
-			postMessageToMain({
-				type: 'progress',
-				payload: {
-					uploadedCount: 0,
-					totalCount,
-					percentage: 5,
-					message: 'Початок завантаження даних...'
-				}
-			});
-
-			// Create an array of promises, limiting concurrency
-			const allChunkPromises: Promise<void>[] = [];
-			for (let i = 0; i < totalCount; i += chunkSize) {
-				const chunkToProcess = data.slice(i, i + chunkSize);
-				if (chunkToProcess.length > 0) {
-					allChunkPromises.push(
-						(async (currentChunk, currentChunkIndex) => {
-							// Wrap in an IIFE to capture chunk context
-							const rowsToInsert: PriceRowForDB[] = currentChunk.map((item) => ({
-								brand: item.brand,
-								article: item.article,
-								price: item.price,
-								description: item.description === '' ? null : item.description,
-								provider_id: providerId,
-								rests: item.rests,
-								loaded_id: newLoadedId,
-							}));
-
-							try {
-								const { error } = await supabase.from('prices').insert(rowsToInsert);
-								if (error) {
-									const { error: updateError } = await supabase
-										.from('price_history')
-										.update({ status: 'failed' })
-										.eq('id', historyId);
-									if (updateError) {
-										console.warn(
-											`Помилка оновлення статусу історії цін (${historyId}): ${updateError.message}`
-										);
-									}
-									throw new Error(
-										`Помилка завантаження даних (пакет ${Math.floor(currentChunkIndex / chunkSize) + 1}): ${JSON.stringify(error)}`
-									);
-								}
-								// Atomically update uploadedCount and send progress
-								uploadedCount += currentChunk.length;
-								const percentage = Math.min(95, (uploadedCount / totalCount) * 90 + 5);
-								console.log(`Chunk ${Math.floor(currentChunkIndex / chunkSize) + 1} uploaded:`, currentChunk.length);
-								postMessageToMain({
-									type: 'progress',
-									payload: {
-										uploadedCount,
-										totalCount,
-										percentage,
-										message: `Завантаження... ${uploadedCount} з ${totalCount} записів.`
-									}
-								});
-							} catch (e: any) {
-								console.error('Error during chunk upload:', e);
-								throw e; // Re-throw to be caught by Promise.all
-							}
-						})(chunkToProcess, i) // Pass chunk and its starting index
-					);
-				}
-			}
-
-			// Use a queue to manage concurrency
-			const uploadQueue = async (tasks: Promise<void>[], limit: number) => {
-				const results = [];
-				const running: Promise<void>[] = [];
-
-				for (const task of tasks) {
-					if (running.length >= limit) {
-						await Promise.race(running);
-					}
-					const p = task.then((res) => {
-						running.splice(running.indexOf(p), 1);
-						return res;
-					});
-					running.push(p);
-					results.push(p);
-				}
-				return Promise.all(results);
-			};
-
-			await uploadQueue(allChunkPromises, concurrencyLimit);
-
-			// 3. Update price_history status to 'actual'
-			if (historyId) {
-				postMessageToMain({
-					type: 'progress',
-					payload: {
-						uploadedCount: totalCount,
+				try {
+					await insertWithRetry(supabase, rows);
+					uploadedCount += rows.length;
+					postProgressThrottled(
+						uploadedCount,
 						totalCount,
-						percentage: 95,
-						message: 'Завершення завантаження...'
-					}
-				});
-				const { error: updateError } = await supabase
-					.from('price_history')
-					.update({ status: 'actual' })
-					.eq('id', historyId);
-				if (updateError) {
-					console.warn(
-						`Помилка оновлення статусу історії цін (${historyId}): ${updateError.message}`
+						`Завантажено ${uploadedCount}/${totalCount}`
 					);
+				} catch (err: any) {
+					// Адаптуємось на 413: зменшуємо чанк наступним і повторно кладемо діапазон у чергу
+					const msg = String(err?.message ?? '');
+					if (msg.includes('413') && (e - s) > 1) {
+						// зменшимо чанк удвічі
+						dynamicChunkSize = Math.max(1, Math.floor(dynamicChunkSize / 2));
+						console.log(`Adapting chunk size to ${dynamicChunkSize}`);
+						// перестворимо діапазони дрібніше: повернемо частину назад у "ітератор"
+						// оскільки ми не зберігаємо глобальну чергу, просто локально доробимо цей блок дрібнішими шматками
+						for (let i = s; i < e; i += dynamicChunkSize) {
+							const ss = i;
+							const ee = Math.min(e, i + dynamicChunkSize);
+							const subRows = mapRows(data, ss, ee, providerId, loadedId);
+							await insertWithRetry(supabase, subRows); // тут теж працює rate-limit + retry
+							uploadedCount += subRows.length;
+							postProgressThrottled(
+								uploadedCount,
+								totalCount,
+								`Завантажено ${uploadedCount}/${totalCount}`
+							);
+						}
+					} else {
+						throw err;
+					}
 				}
 			}
-
 		}
-		await deleteOldPrices(supabase, providerId, historyCreatedAt!);
 
-		postMessageToMain({ type: 'complete', payload: { totalCount } });
-	} catch (error: any) {
-		console.error('Upload process failed in worker:', error);
-		// Ensure history status is updated to 'failed' on error
-		if (historyId) {
-			await supabase.from('price_history').update({ status: 'failed' }).eq('id', historyId);
+		const workers: Promise<void>[] = [];
+		for (let i = 0; i < CONC; i++) workers.push(runner());
+
+		try {
+			await Promise.all(workers);
+			await setHistoryStatus(supabase, history.id, 'actual');
+			await deleteOldPrices(supabase, providerId, history.created_at);
+			self.postMessage({ type: 'complete', payload: { totalCount } });
+		} catch (e: any) {
+			await setHistoryStatus(supabase, history.id, 'failed');
+			const percentage = totalCount ? Math.round((uploadedCount / totalCount) * 100) : 0;
+			self.postMessage({
+				type: 'error',
+				payload: {
+					message: e?.message || 'Upload failed',
+					uploadedCount,
+					totalCount,
+					percentage
+				}
+			} as WorkerMessage);
 		}
-		postMessageToMain({
+	} catch (fatal: any) {
+		// помилка на ранній стадії (loaded_id/history)
+		self.postMessage({
 			type: 'error',
 			payload: {
-				message: error.message,
-				uploadedCount,
-				totalCount,
-				percentage: Math.min(95, (uploadedCount / totalCount) * 90 + 5)
+				message: fatal?.message || 'Fatal error',
+				uploadedCount: 0,
+				totalCount: 0,
+				percentage: 0
 			}
-		});
-	}
-}
-
-// Listen for messages from the main thread
-self.onmessage = (event: MessageEvent<WorkerMessage>) => {
-	if (event.data.type === 'startUpload') {
-		const { data, providerId, settings, authToken, hash, loadedId, companyId } = event.data.data;
-
-		uploadPricesToSupabaseInWorker(
-			data,
-			hash,
-			loadedId ? loadedId : null,
-			providerId,
-			settings,
-			createClient(event.data.data.supabaseUrl, event.data.data.supabaseAnonKey, {
-				global: {
-					headers: {
-						Authorization: `Bearer ${authToken}`
-					}
-				}
-			}),
-			companyId,
-		);
+		} as WorkerMessage);
+	} finally {
+		clearInterval(refill);
 	}
 };

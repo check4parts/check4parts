@@ -76,7 +76,7 @@ export async function startWorkerUpload(
 	}) => void,
 	settings: AppSettings = {
 		startFrom: 0,
-		chunkSize: 7000,
+		chunkSize: 6000,
 		concurrencyLimit: 5
 	},
 ): Promise<void> {
