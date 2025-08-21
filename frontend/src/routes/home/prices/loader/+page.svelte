@@ -77,7 +77,6 @@
 			.eq('hash', hash)
 			.single()
 
-		console.log('Loaded ID:', loaded_prices?.id);
 		loadedId = loaded_prices?.id || null;
 		if (!loadedId) {
 			return {
@@ -86,7 +85,6 @@
 			};
 		}
 
-		// 2. Знаходимо всі price_history з цим loaded_id
 		const { data: priceData } = await data.supabasePrices
 			.from('price_history')
 			.select('id', { count: 'exact' })
@@ -361,14 +359,14 @@
 	>
 		<label for="fileInput" class="w-full">
 			<span class="label">Оберіть файл для завантаження</span>
-			<input
+			<!-- <input
 				id="fileInput"
 				class="focus:border-primary-500 mt-1 h-12 w-full rounded-md bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:outline-none"
 				type="file"
 				accept=".xlsx,.xls,.csv,.txt"
 				bind:files
 				required
-			/>
+			/> -->
 		</label>
 		<InputSelect
 			items={providers.map((provider) => ({

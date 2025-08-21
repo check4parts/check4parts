@@ -6,16 +6,22 @@
 	import InputSelect from '$lib/components/inputs/modal/InputSelect.svelte';
 	import TemplateModal from './(components)/TemplateModal.svelte';
 	import { autoMapHeaders, type Template } from '$lib/utils/loader/AutoMap';
-	import { transformPreviewData } from '$lib/utils/loader/TransformFile.svelte';
+	import {
+		checkHashExists,
+		StartTransformFileWorker,
+		transformPreviewData,
+		type TransformedItem
+	} from '$lib/utils/loader/TransformFile.svelte';
+	import { startWorkerUpload, terminateWorkerUpload } from '$lib/utils/loader/SupabaseUpload';
+	import { PUBLIC_SUPABASE_PRICES_ANON_KEY, PUBLIC_SUPABASE_PRICES_URL } from '$env/static/public';
 
 	let { data } = $props();
 	let { providers, warehouses } = $derived(data);
 
 	let company_id = $derived<string>(parseJwt(data.session?.access_token || '')?.company_id || '');
 
-	let selected_provider = $state<string>("");
-	$inspect('Selected Provider', selected_provider);
-	
+	let selected_provider = $state<string>('');
+
 	let currentProviderWarehouses = $derived(
 		warehouses.filter((warehouse) => warehouse.provider_id === selected_provider)
 	);
@@ -36,7 +42,7 @@
 	let previewData: any[] = $state([]);
 	let fileHeaders: string[] = $state([]);
 	let firstRowHeaders: string[] = $state([]);
-	let fullFileData: any[] = $state([]);
+	let fullFileData: any[] = $state.raw([]);
 	let processingMessage = $state('');
 	let processingPercentage = $state(0);
 	let errorMessage = $state('');
@@ -50,6 +56,14 @@
 	let templateComleated = $derived(
 		template.template.reduce((acc, row) => acc && row.header !== '', true) && selected_provider
 	);
+	let transformingData = $state(false);
+	let transformedData: TransformedItem[] = $state.raw([]);
+	let fileTransformed = $state(false);
+	let hashCheck = $state<{ loaded_id: string | null; hashExists: any[] }>({
+		loaded_id: null,
+		hashExists: []
+	});
+	let hashFullTransformedData: string = $state('');
 
 	$effect(() => {
 		if (previewData.length > 0) {
@@ -61,6 +75,8 @@
 	$effect(() => {
 		if (step) {
 			stepState = 'current';
+			processingMessage = '';
+			processingPercentage = 0;
 		}
 	});
 
@@ -107,6 +123,94 @@
 		});
 	}
 
+	async function handleTransformData() {
+		transformingData = true;
+		errorMessage = '';
+		processingMessage = 'Підготовка до трансформації даних...';
+		processingPercentage = 0;
+
+		try {
+			// Викликаємо функцію StartTransformFileWorker, глибоко клонуючи fullFileData, щоб уникнути DataCloneError
+			const result = await StartTransformFileWorker(
+				$state.snapshot(fullFileData), // Глибоке клонування даних
+				$state.snapshot(template.template), // Глибоке клонування mappedHeaders,
+				selected_provider,
+				company_id,
+				data.session?.access_token || '', // Передаємо authToken
+				({ state }) => {
+					if (state === 'transforming') {
+						processingMessage = 'Трансформація даних...';
+					} else if (state === 'hash') {
+						processingMessage = 'Обрахування хешу...';
+					}
+					processingPercentage += 20; // Збільшуємо відсоток для візуалізації прогресу
+				}
+			);
+
+			transformedData = result.transformedData;
+			hashFullTransformedData = result.hash;
+
+			processingMessage = 'Дані успішно трансформовані! Тепер можете завантажити їх в базу даних.';
+			fileTransformed = true;
+			hashCheck = await checkHashExists(hashFullTransformedData, data.supabasePrices);
+		} catch (error: any) {
+			console.error('Error during data transformation:', error);
+			errorMessage = `Помилка трансформації даних: ${error.message || 'Невідома помилка'}`;
+			processingMessage = 'Помилка трансформації даних.';
+		} finally {
+			transformingData = false;
+			processingPercentage = 100;
+		}
+	}
+
+	async function handleUploadToDatabase() {
+		uploadingToDB = true;
+
+		if (!selected_provider) {
+			errorMessage = 'Будь ласка, оберіть провайдера перед завантаженням в базу даних.';
+			return;
+		}
+
+		errorMessage = '';
+		uploadDBMessage = 'Завантаження даних до бази даних...';
+		uploadDBPercentage = 0;
+
+		try {
+			uploadedToDB = false;
+			await startWorkerUpload(
+				transformedData,
+				$state.snapshot(hashFullTransformedData),
+				hashCheck.loaded_id,
+				selected_provider,
+				data.session?.access_token || '',
+				PUBLIC_SUPABASE_PRICES_URL,
+				PUBLIC_SUPABASE_PRICES_ANON_KEY,
+				({
+					uploadedCount,
+					totalCount,
+					percentage,
+					message
+				}: {
+					uploadedCount: number;
+					totalCount: number;
+					percentage: number;
+					message: string;
+				}) => {
+					uploadDBMessage = message;
+					uploadDBPercentage = percentage;
+				}
+			);
+			uploadDBMessage = 'Дані успішно завантажено в базу даних!';
+			uploadedToDB = true;
+		} catch (error: any) {
+			console.error('Error uploading to database:', error);
+			errorMessage = `Помилка завантаження до бази даних: ${error.message || 'Невідома помилка'}`;
+			uploadDBMessage = 'Помилка завантаження до бази даних.';
+		} finally {
+			uploadingToDB = false;
+		}
+	}
+
 	function resetStatesForNewUpload() {
 		fileLoading = true;
 		errorMessage = '';
@@ -116,14 +220,15 @@
 		fullFileData = [];
 		fileHeaders = [];
 		firstRowHeaders = [];
-		// transformingData = false;
-		// fileTransformed = false;
+		transformingData = false;
+		fileTransformed = false;
+		selected_provider = '';
 		uploadingToDB = false;
 		uploadDBMessage = '';
 		uploadDBPercentage = 0;
 		uploadedToDB = false; // Скидаємо цей стан також
-		// hashCheckPromise = null; // Скидаємо проміс перевірки хешу
-		// terminateWorkerUpload();
+		hashCheck = { loaded_id: null, hashExists: [] }; // Скидаємо проміс перевірки хешу
+		terminateWorkerUpload();
 	}
 
 	function formatFileSize(bytes: number, decimals = 2) {
@@ -159,7 +264,7 @@
 
 <section class="mt-4 max-h-[68vh] overflow-y-auto">
 	{#if step === 1 || debug}
-		<h2 class="h5 sticky top-0 flex items-center gap-2 bg-white">
+		<h2 class="h5 top-0 flex items-center gap-2 bg-white">
 			<img src="/step-1.svg" alt="Крок 1" /> Крок 1: Завантажте файл з цінами
 		</h2>
 		<form
@@ -335,27 +440,49 @@
 				</div>
 			</section>
 		{/if}
-		<section class="mt-4 flex flex-col items-end">
-			{#if errorMessage}
-				<p class="text-error-500">{errorMessage}</p>
-			{/if}
-			{#if templateComleated}
-				<button
-					class="btn preset-filled-primary-950-50 mt-4"
-					onclick={() => {
-						if (templateComleated) {
-							step = 3;
-						}
-					}}
-					disabled={!templateComleated}
-				>
-					Далі
-				</button>
+		<section class="mt-4">
+			{#if !fileTransformed}
+				{#if templateComleated}
+					<div class="flex w-full gap-4">
+						<button class="btn preset-filled-primary-950-50" onclick={handleTransformData}>
+							Співставити всі дані
+						</button>
+						{#if processingMessage}
+							<div class="w-full">
+								<p class="text-sm text-gray-700">{processingMessage}</p>
+								<div class="h-2.5 w-full rounded-full bg-gray-200">
+									<div
+										class="h-2.5 rounded-full bg-blue-600"
+										style="width: {processingPercentage}%"
+									></div>
+								</div>
+							</div>
+						{/if}
+					</div>
+					{#if errorMessage}
+						<p class="text-error-500">{errorMessage}</p>
+					{/if}
+				{:else}
+					<p class="text-error-500">
+						Будь ласка, налаштуйте всі колонки перед переходом до наступного кроку.
+					</p>
+				{/if}
 			{:else}
-				<p class="text-error-500">
-					Будь ласка, налаштуйте всі колонки перед переходом до наступного кроку.
+				<p class="card preset-tonal-success mt-4 w-full p-4 text-center">
+					Дані успішно оброблено. Ви можете перейти до наступного кроку для заватаження даних в базу
+					даних.
 				</p>
-			{/if}	
+				<div class="flex justify-end">
+					<button
+						class="btn preset-filled-primary-950-50 mt-4"
+						onclick={() => {
+							step = 3;
+						}}
+					>
+						Далі
+					</button>
+				</div>
+			{/if}
 		</section>
 	{:else if step === 3 || debug}
 		<header>
@@ -363,5 +490,16 @@
 				<img src="/step-3.svg" alt="Крок 3" /> Крок 3: Завантажте дані в базу
 			</h2>
 		</header>
+		<button class="btn preset-filled-primary-950-50" onclick={handleUploadToDatabase}>
+			Завантажити все в БД
+		</button>
+		{#if uploadingToDB}
+			<div class="mt-4">
+				<p class="text-sm text-gray-700">{uploadDBMessage}</p>
+				<div class="mt-2 h-2.5 w-full rounded-full bg-gray-200">
+					<div class="h-2.5 rounded-full bg-green-600" style="width: {uploadDBPercentage}%"></div>
+				</div>
+			</div>
+		{/if}
 	{/if}
 </section>

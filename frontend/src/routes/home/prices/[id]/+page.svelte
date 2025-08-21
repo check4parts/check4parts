@@ -1,8 +1,6 @@
 <script>
-	import { json } from '@sveltejs/kit';
-
 	let { data } = $props();
-	let { price, price_history, warehouses, count } = $derived(data);
+	let { price, price_history, warehouses, count, reference_count } = $derived(data);
 </script>
 
 <div class="border-primary-950 overflow-hidden rounded-xl border-2">
@@ -42,11 +40,14 @@
 							<span class="ml-1 text-xs">({price_history.providers.short_name})</span>
 						{/if}
 					</p>
-					{#if price_history.status === 'actual'}
+					{#if price_history.status === 'actual' || price_history.status === 'cloned'}
 						<p class="text-sm">
 							<span class="text-primary-900 font-medium">Статус:</span>
 							<span class="rounded-full bg-green-100 px-2 py-1 text-xs text-green-800">
 								Актуальний
+								{#if price_history.status === 'cloned'}
+									({reference_count})
+								{/if}
 							</span>
 						</p>
 						<p class="text-sm">

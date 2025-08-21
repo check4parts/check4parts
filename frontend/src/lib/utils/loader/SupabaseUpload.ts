@@ -11,33 +11,33 @@ export type AppSettings = {
 
 export type WorkerMessage =
 	| {
-			type: 'startUpload';
-			data: {
-				data: TransformedItem[];
-				providerId: string;
-				settings: AppSettings;
-				authToken: string;
-				hash: string;
-				loadedId?: string | null;
-				companyId: string;
-				supabaseAnonKey: string;
-				supabaseUrl: string;
-			};
-	  }
+		type: 'startUpload';
+		data: {
+			data: TransformedItem[];
+			providerId: string;
+			settings: AppSettings;
+			authToken: string;
+			hash: string;
+			loadedId?: string | null;
+			companyId: string;
+			supabaseAnonKey: string;
+			supabaseUrl: string;
+		};
+	}
 	| {
-			type: 'progress';
-			payload: { uploadedCount: number; totalCount: number; percentage: number; message: string };
-	  }
+		type: 'progress';
+		payload: { uploadedCount: number; totalCount: number; percentage: number; message: string };
+	}
 	| { type: 'complete'; payload: { totalCount: number } }
 	| {
-			type: 'error';
-			payload: {
-				message: string;
-				uploadedCount?: number;
-				totalCount?: number;
-				percentage?: number;
-			};
-	  };
+		type: 'error';
+		payload: {
+			message: string;
+			uploadedCount?: number;
+			totalCount?: number;
+			percentage?: number;
+		};
+	};
 
 export type PriceRowForDB = {
 	brand: string;
@@ -52,11 +52,11 @@ export type PriceRowForDB = {
 let uploadWorker: Worker | null = null;
 let currentOnProgress:
 	| ((progress: {
-			uploadedCount: number;
-			totalCount: number;
-			percentage: number;
-			message: string;
-	  }) => void)
+		uploadedCount: number;
+		totalCount: number;
+		percentage: number;
+		message: string;
+	}) => void)
 	| undefined;
 let currentReject: ((reason?: any) => void) | undefined;
 
@@ -65,7 +65,6 @@ export async function startWorkerUpload(
 	hash: string,
 	loadedId: string | null,
 	providerId: string,
-	settings: AppSettings,
 	authToken: string,
 	supabaseUrl: string,
 	supabaseAnonKey: string,
@@ -74,7 +73,12 @@ export async function startWorkerUpload(
 		totalCount: number;
 		percentage: number;
 		message: string;
-	}) => void
+	}) => void,
+	settings: AppSettings = {
+		startFrom: 0,
+		chunkSize: 7000,
+		concurrencyLimit: 5
+	},
 ): Promise<void> {
 	return new Promise((resolve, reject) => {
 		// Terminate existing worker if any, to ensure a clean slate

@@ -8,7 +8,7 @@ function postMessageToMain(message: WorkerMessage) {
 }
 
 async function deleteOldPrices(supabase: SupabaseClient, providerId: string, historyCreatedAt: string) {
-	const { data, error } = await supabase
+	const { data } = await supabase
 		.from('price_history')
 		.select('*')
 		.eq('provider_id', providerId)
@@ -39,7 +39,6 @@ async function uploadPricesToSupabaseInWorker(
 	providerId: string,
 	settings: AppSettings,
 	supabase: SupabaseClient,
-	companyId: string
 ): Promise<void> {
 	const totalCount = data.length;
 	let uploadedCount = 0;
@@ -171,6 +170,7 @@ async function uploadPricesToSupabaseInWorker(
 								// Atomically update uploadedCount and send progress
 								uploadedCount += currentChunk.length;
 								const percentage = Math.min(95, (uploadedCount / totalCount) * 90 + 5);
+								console.log(`Chunk ${Math.floor(currentChunkIndex / chunkSize) + 1} uploaded:`, currentChunk.length);
 								postMessageToMain({
 									type: 'progress',
 									payload: {

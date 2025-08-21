@@ -1,6 +1,6 @@
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ locals: { supabasePrices }, request, params }) => {
+export const load: PageServerLoad = async ({ locals: { supabasePrices }, params }) => {
 	const history_id = params.id;
 	const { data: price_history, error: historyError } = await supabasePrices
 		.from('price_history')
@@ -23,7 +23,7 @@ export const load: PageServerLoad = async ({ locals: { supabasePrices }, request
 
 		const { data: count } = await supabasePrices
 			.from('loaded_prices_with_references')
-			.select('price_rows_count')
+			.select('price_rows_count,reference_count')
 			.eq('loaded_price_id', price_history.loaded_id)
 			.single();
 
@@ -36,6 +36,7 @@ export const load: PageServerLoad = async ({ locals: { supabasePrices }, request
 		return {
 			price: price,
 			count: count?.price_rows_count || 0,
+			reference_count: count?.reference_count || 0,
 			price_history: price_history || [],
 			warehouses: warehouses || [],
 		};
@@ -45,5 +46,6 @@ export const load: PageServerLoad = async ({ locals: { supabasePrices }, request
 		price_history: price_history || [],
 		warehouses: [],
 		count:  0,
+		reference_count: 0
 	};
 };

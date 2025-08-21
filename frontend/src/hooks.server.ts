@@ -10,7 +10,6 @@ import {
 	PUBLIC_SUPABASE_TECDOC_URL,
 	PUBLIC_SUPABASE_TECDOC_ANON_KEY
 } from '$env/static/public';
-import { createClient } from '@supabase/supabase-js';
 
 const supabase: Handle = async ({ event, resolve }) => {
 	/**

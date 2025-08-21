@@ -18,22 +18,53 @@ export interface TransformedItem {
 	rests: {
 		[warehouseId: string]: number | string;
 	};
+	[key: string]: any;
 }
 
 export type WorkerMessage =
 	| {
-			type: 'startUpload';
-			data: {
-				data: any[];
-				mappedHeaders: MappedHeader[];
-				providerId: string;
-				companyId: string;
-				authToken: string;
-			};
-	  }
+		type: 'startUpload';
+		data: {
+			data: any[];
+			mappedHeaders: MappedHeader[];
+			providerId: string;
+			companyId: string;
+			authToken: string;
+		};
+	}
 	| { type: 'progress'; payload: { state: 'transforming' | 'hash' } }
 	| { type: 'complete'; payload: { transformedData: TransformedItem[]; hash: string } }
 	| { type: 'error'; payload: { message: string } };
+
+export async function checkHashExists(hash: string,  supabasePrices: any): Promise<{ loaded_id: string | null; hashExists: any[] }> {
+	console.log('Checking hash:', hash);
+	console.log('Supabase Prices:', supabasePrices);
+	let { data: loaded_prices, error } = await supabasePrices
+		.from('loaded_prices')
+		.select('id')
+		.eq('hash', hash)
+		.single()
+
+	console.log('Loaded ID:', loaded_prices?.id, error);
+	let loadedId = loaded_prices?.id || null;
+	if (!loadedId) {
+		return {
+			loaded_id: null,
+			hashExists: []
+		};
+	}
+
+	// 2. Знаходимо всі price_history з цим loaded_id
+	const { data: priceData, error: priceError } = await supabasePrices
+		.from('price_history')
+		.select('id', { count: 'exact' })
+		.eq('loaded_id', loadedId);
+	console.log('Hash Check Data:', priceData, priceError);
+	return {
+		loaded_id: loadedId || null,
+		hashExists: priceData || []
+	};
+}
 
 export function transformPreviewData(
 	data: any[],
@@ -65,7 +96,7 @@ export function transformPreviewData(
 							transformedRow.description = String(value);
 							break;
 						case 'price':
-							transformedRow.price = 
+							transformedRow.price =
 								parseFloat(String(value).replace(',', '.')) || -1;
 							break;
 					}

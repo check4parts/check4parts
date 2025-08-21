@@ -1,28 +1,35 @@
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals: { supabasePrices, supabase } }) => {
-	const { data: staff, error: staffError } = await supabase
-		.from('staff')
-		.select('user_id, first_name, last_name, email');
+	const staff = new Promise<any[]>((resolve) => {
+		supabase
+			.from('staff')
+			.select('user_id, first_name, last_name, email')
+			.then(({ data, error }) => {
+				if (error) {
+					console.error(error)
+					resolve([error])
+				}
+				else { resolve(data) };
+			});
+	});
 
-	const { data: price_history, error } = await supabasePrices
-		.from('price_history')
-		.select('*,providers(*),loaded_prices(hash)')
-		.order('status', { ascending: true })
-		.order('created_at', { ascending: false });
-	
-	console.log('Price history data:', price_history);
-
-	const staffMap = new Map(staff!.map((employee) => [employee.user_id, employee]));
-
-	const enrichedPriceHistory = price_history!.map((priceEntry) => ({
-		...priceEntry,
-		user: staffMap.get(priceEntry.user_id) || null,
-		provider_name: priceEntry.providers?.name || null
-	}));
-
+	const price_history = new Promise<any[]>((resolve) => {
+		supabasePrices
+			.from('price_history')
+			.select('*,providers(*),loaded_prices(hash)')
+			.order('status', { ascending: true })
+			.order('created_at', { ascending: false })
+			.then(({ data, error }) => {
+				if (error) {
+					console.error(error)
+					resolve([error])
+				}
+				else { resolve(data) };
+			});
+	});
 	return {
-		price_history: enrichedPriceHistory ?? [],
-		error: error
+		price_history: price_history,
+		staff: staff,
 	};
 };

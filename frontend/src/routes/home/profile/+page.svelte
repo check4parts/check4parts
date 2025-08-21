@@ -6,6 +6,7 @@
 
 	let { data, form } = $props();
 	let { user, staff, points, roles } = $derived(data);
+	$inspect(data);
 
 	let editNameOpenState = $state(false);
 	let contactsCardState = $state<'view' | 'edit'>('view');
@@ -66,7 +67,7 @@
 			user_id: staff.user_id,
 			email: user?.email,
 			phone_number: staff.phone_number,
-			trading_point: staff.trading_points,
+			trading_point: staff.trading_points ?? {name: '(не додано)'},
 			role: staff.roles
 		}}
 		bind:cardState={contactsCardState}
