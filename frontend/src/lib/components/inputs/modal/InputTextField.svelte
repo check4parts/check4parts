@@ -21,7 +21,8 @@
 </script>
 
 <label class="label">
-	<h6 class="h6">{lable}
+	<h6 class="h6">
+		{lable}
 		{#if required}
 			<span>*</span>
 		{/if}

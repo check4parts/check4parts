@@ -21,14 +21,16 @@
 				: 'bg-success-600'
 		: 'bg-surface-100'}
 	<li>
-		<div class="flex items-center text-surface-50-950">
+		<div class="text-surface-50-950 flex items-center">
 			<span class={backgroundColor + ' h-1 w-24'}></span>
 			<button
 				class={backgroundColor +
 					' flex h-10 w-10 items-center justify-center rounded-full text-xl font-bold'}
-        onclick={() => {step = stepNumber;}}
-        disabled={step < stepNumber}
-        >
+				onclick={() => {
+					step = stepNumber;
+				}}
+				disabled={step < stepNumber}
+			>
 				{stepNumber}
 			</button>
 			<span class={backgroundColor + ' h-1 w-24'}></span>

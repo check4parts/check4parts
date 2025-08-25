@@ -23,29 +23,29 @@ export interface TransformedItem {
 
 export type WorkerMessage =
 	| {
-		type: 'startUpload';
-		data: {
-			data: any[];
-			mappedHeaders: MappedHeader[];
-			providerId: string;
-			companyId: string;
-			authToken: string;
-		};
-	}
+			type: 'startUpload';
+			data: {
+				data: any[];
+				mappedHeaders: MappedHeader[];
+				providerId: string;
+				companyId: string;
+				authToken: string;
+			};
+	  }
 	| { type: 'progress'; payload: { state: 'transforming' | 'hash' } }
 	| { type: 'complete'; payload: { transformedData: TransformedItem[]; hash: string } }
 	| { type: 'error'; payload: { message: string } };
 
-export async function checkHashExists(hash: string,  supabasePrices: any): Promise<{ loaded_id: string | null; hashExists: any[] }> {
-	console.log('Checking hash:', hash);
-	console.log('Supabase Prices:', supabasePrices);
+export async function checkHashExists(
+	hash: string,
+	supabasePrices: any
+): Promise<{ loaded_id: string | null; hashExists: any[] }> {
 	let { data: loaded_prices, error } = await supabasePrices
 		.from('loaded_prices')
 		.select('id')
 		.eq('hash', hash)
-		.single()
+		.single();
 
-	console.log('Loaded ID:', loaded_prices?.id, error);
 	let loadedId = loaded_prices?.id || null;
 	if (!loadedId) {
 		return {
@@ -59,7 +59,6 @@ export async function checkHashExists(hash: string,  supabasePrices: any): Promi
 		.from('price_history')
 		.select('id', { count: 'exact' })
 		.eq('loaded_id', loadedId);
-	console.log('Hash Check Data:', priceData, priceError);
 	return {
 		loaded_id: loadedId || null,
 		hashExists: priceData || []
@@ -96,8 +95,7 @@ export function transformPreviewData(
 							transformedRow.description = String(value);
 							break;
 						case 'price':
-							transformedRow.price =
-								parseFloat(String(value).replace(',', '.')) || -1;
+							transformedRow.price = parseFloat(String(value).replace(',', '.')) || -1;
 							break;
 					}
 				} else if (templateRow.type === 'rests') {
@@ -106,7 +104,7 @@ export function transformPreviewData(
 						const restValue = row[templateRow.header] || 0;
 						transformedRow.rests[warehouseId] = restValue;
 					} else {
-						transformedRow.rests[warehouseId] = "Невідомо";
+						transformedRow.rests[warehouseId] = 'Невідомо';
 					}
 				}
 			});
@@ -114,7 +112,6 @@ export function transformPreviewData(
 		})
 		.filter((item): item is TransformedItem => item !== null);
 }
-
 
 export async function StartTransformFileWorker(
 	fileData: any[],
@@ -132,11 +129,9 @@ export async function StartTransformFileWorker(
 
 			switch (message.type) {
 				case 'progress':
-					console.log(`Прогрес воркера: ${message.payload.state}`);
 					onProgress(message.payload);
 					break;
 				case 'complete':
-					console.log('Воркер завершив роботу:', message.payload);
 					worker.terminate(); // Завершити воркер після завершення роботи
 					resolve(message.payload);
 					break;

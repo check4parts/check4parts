@@ -7,10 +7,11 @@ export const load: PageServerLoad = async ({ locals: { supabasePrices, supabase 
 			.select('user_id, first_name, last_name, email')
 			.then(({ data, error }) => {
 				if (error) {
-					console.error(error)
-					resolve([error])
+					console.error(error);
+					resolve([error]);
+				} else {
+					resolve(data);
 				}
-				else { resolve(data) };
 			});
 	});
 
@@ -22,14 +23,15 @@ export const load: PageServerLoad = async ({ locals: { supabasePrices, supabase 
 			.order('created_at', { ascending: false })
 			.then(({ data, error }) => {
 				if (error) {
-					console.error(error)
-					resolve([error])
+					console.error(error);
+					resolve([error]);
+				} else {
+					resolve(data);
 				}
-				else { resolve(data) };
 			});
 	});
 	return {
 		price_history: price_history,
-		staff: staff,
+		staff: staff
 	};
 };

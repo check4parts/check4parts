@@ -94,7 +94,7 @@
 		{#if price_history.length === 0}
 			<p class="text-center text-gray-500">Історія цін порожня.</p>
 		{:else}
-		{@render priceHistoryTable(price_history)}
+			{@render priceHistoryTable(price_history)}
 		{/if}
 	{:catch error}
 		<p class="text-center text-red-500">Помилка завантаження історії цін: {error.message}</p>

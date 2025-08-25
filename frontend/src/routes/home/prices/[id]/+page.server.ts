@@ -27,25 +27,21 @@ export const load: PageServerLoad = async ({ locals: { supabasePrices }, params 
 			.eq('loaded_price_id', price_history.loaded_id)
 			.single();
 
-
-		const { data: warehouses } = await supabasePrices
-			.from('warehouses')
-			.select('*')
-			.order('name')
+		const { data: warehouses } = await supabasePrices.from('warehouses').select('*').order('name');
 
 		return {
 			price: price,
 			count: count?.price_rows_count || 0,
 			reference_count: count?.reference_count || 0,
 			price_history: price_history || [],
-			warehouses: warehouses || [],
+			warehouses: warehouses || []
 		};
 	}
 	return {
 		price: Promise.resolve([]),
 		price_history: price_history || [],
 		warehouses: [],
-		count:  0,
+		count: 0,
 		reference_count: 0
 	};
 };

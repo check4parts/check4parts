@@ -31,7 +31,8 @@
 </script>
 
 <label class="label relative block w-full">
-	<h6 class="h6">{lable}
+	<h6 class="h6">
+		{lable}
 		{#if required}
 			<span>*</span>
 		{/if}

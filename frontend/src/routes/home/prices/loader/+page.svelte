@@ -70,7 +70,6 @@
 	$effect(() => {
 		if (previewData.length > 0) {
 			template.template = autoMapHeaders(Object.values(previewData[0]), currentProviderWarehouses);
-			console.log('Template changed:');
 		}
 	});
 
@@ -100,7 +99,6 @@
 
 		await processFile(uploadedFiles, 1, 5, 0, {
 			onPreview: ({ previewData: data, metadata }) => {
-				console.log('Preview Data:', data);
 				previewData = data;
 				fileHeaders = metadata.headers;
 			},
@@ -111,7 +109,6 @@
 				processingPercentage = 100;
 			},
 			onProgress: ({ message, percentage }) => {
-				console.log('Progress:', message, percentage);
 				processingMessage = message;
 				processingPercentage = percentage;
 			},
@@ -202,8 +199,6 @@
 					uploadDBPercentage = percentage;
 					uploadedCount = uploaded;
 					totalCount = total;
-					console.log(`Upload Progress: ${message} - ${percentage}%`);
-					console.log(`Uploaded Count: ${uploadedCount} / Total Count: ${totalCount}`);
 				}
 			);
 			uploadDBMessage = 'Дані успішно завантажено в базу даних!';
@@ -287,7 +282,6 @@
 				onFileChange={(e) => {
 					const files = e.acceptedFiles;
 					resetStatesForNewUpload();
-					console.log('Selected files:', e);
 					if (files.length > 0) {
 						uploadedFiles = files;
 					} else {
@@ -403,7 +397,7 @@
 								{#each template.metadata.firstRowHeaders ? previewData.slice(1) : previewData as row}
 									<tr class="hover:bg-primary-50 group w-full divide-x-2">
 										{#each Object.values(row) as cell}
-											<td class="whitespace-nowrap px-4 py-2">{cell}</td>
+											<td class="px-4 py-2 whitespace-nowrap">{cell}</td>
 										{/each}
 									</tr>
 								{/each}
@@ -514,7 +508,9 @@
 				{/if}
 				{#if uploadedToDB}
 					<div class="card preset-tonal-success mt-4 w-full p-4 text-center">
-						<p class="text-md font-bold">Прайс-лист успішно збережено. Дані постачальника оновлено.</p>
+						<p class="text-md font-bold">
+							Прайс-лист успішно збережено. Дані постачальника оновлено.
+						</p>
 					</div>
 				{/if}
 				{#if errorMessage}

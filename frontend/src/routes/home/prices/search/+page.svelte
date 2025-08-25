@@ -3,7 +3,7 @@
 
 	const { data } = $props();
 	const { warehouses, query, data: results, fetchError } = $derived(data);
-	$inspect(data)
+	$inspect(data);
 	let isLoading = $state(false);
 
 	afterNavigate(() => {

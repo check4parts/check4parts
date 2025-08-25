@@ -52,7 +52,7 @@
 	<Dialog.Portal>
 		<Dialog.Overlay class="fixed inset-0 z-50 bg-black/80" />
 		<Dialog.Content
-			class="fixed left-1/2 top-1/2 z-50 w-1/2 -translate-x-1/2 -translate-y-1/2 rounded-xl bg-white p-4"
+			class="fixed top-1/2 left-1/2 z-50 w-1/2 -translate-x-1/2 -translate-y-1/2 rounded-xl bg-white p-4"
 		>
 			<div class="flex justify-end">
 				<button type="button" onclick={modalClose}>
@@ -80,11 +80,11 @@
 								{@const fileHeader = data.fileHeaders[index]}
 								{@const current = template.template.find((r) => r.header === fileHeader)}
 
-								<tr class="align-baseline grid grid-cols-[2fr_3fr_1fr] items-center">
-									<td class="py-2 text-lg font-semibold w-fit max-w-2/3">{label}:</td>
-									<td class="py-2 pr-2 ">
+								<tr class="grid grid-cols-[2fr_3fr_1fr] items-center align-baseline">
+									<td class="w-fit max-w-2/3 py-2 text-lg font-semibold">{label}:</td>
+									<td class="py-2 pr-2">
 										<select
-											class="rounded border p-1 w-full"
+											class="w-full rounded border p-1"
 											value={current?.value ?? 'ignore'}
 											onchange={(e) =>
 												handleTemplateChange(index, (e.target as HTMLSelectElement).value)}

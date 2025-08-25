@@ -38,19 +38,12 @@ async function scheduleStart() {
 }
 
 let lastProgressTs = 0;
-function postProgressThrottled(
-	uploadedCount: number,
-	totalCount: number,
-	message: string
-) {
+function postProgressThrottled(uploadedCount: number, totalCount: number, message: string) {
 	const now = Date.now();
 	// не частіше ~1 разу на 120мс
 	if (now - lastProgressTs < 120) return;
 	lastProgressTs = now;
-	const percentage = Math.max(
-		0,
-		Math.min(100, Math.round((uploadedCount / totalCount) * 100))
-	);
+	const percentage = Math.max(0, Math.min(100, Math.round((uploadedCount / totalCount) * 100)));
 
 	self.postMessage({
 		type: 'progress',
@@ -97,10 +90,7 @@ async function setHistoryStatus(
 	historyId: string,
 	status: 'actual' | 'failed'
 ) {
-	const { error } = await supabase
-		.from('price_history')
-		.update({ status })
-		.eq('id', historyId);
+	const { error } = await supabase.from('price_history').update({ status }).eq('id', historyId);
 	if (error) {
 		console.warn(`Помилка оновлення статусу історії (${historyId}): ${error.message}`);
 	}
@@ -223,7 +213,7 @@ self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
 		let uploadedCount = 0;
 
 		// 3) підготовка чанків
-		const CHUNK = Math.max(1, Math.min((settings?.chunkSize ?? MAX_CHUNK_SIZE), MAX_CHUNK_SIZE));
+		const CHUNK = Math.max(1, Math.min(settings?.chunkSize ?? MAX_CHUNK_SIZE, MAX_CHUNK_SIZE));
 		const CONC = Math.max(1, settings?.concurrencyLimit ?? 5);
 		const startFrom = Math.max(0, settings?.startFrom ?? 0);
 
@@ -250,10 +240,9 @@ self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
 				} catch (err: any) {
 					// Адаптуємось на 413: зменшуємо чанк наступним і повторно кладемо діапазон у чергу
 					const msg = String(err?.message ?? '');
-					if (msg.includes('413') && (e - s) > 1) {
+					if (msg.includes('413') && e - s > 1) {
 						// зменшимо чанк удвічі
 						dynamicChunkSize = Math.max(1, Math.floor(dynamicChunkSize / 2));
-						console.log(`Adapting chunk size to ${dynamicChunkSize}`);
 						// перестворимо діапазони дрібніше: повернемо частину назад у "ітератор"
 						// оскільки ми не зберігаємо глобальну чергу, просто локально доробимо цей блок дрібнішими шматками
 						for (let i = s; i < e; i += dynamicChunkSize) {

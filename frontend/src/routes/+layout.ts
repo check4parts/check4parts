@@ -18,20 +18,20 @@ export const load: LayoutLoad = async ({ data, depends, fetch }) => {
 	// Ініціалізація основного клієнта Supabase
 	const supabase = isBrowser()
 		? createBrowserClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, {
-			global: {
-				fetch
-			}
-		})
-		: createServerClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, {
-			global: {
-				fetch
-			},
-			cookies: {
-				getAll() {
-					return data.cookies;
+				global: {
+					fetch
 				}
-			}
-		});
+			})
+		: createServerClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, {
+				global: {
+					fetch
+				},
+				cookies: {
+					getAll() {
+						return data.cookies;
+					}
+				}
+			});
 
 	/**
 	 * Отримуємо сесію з основного клієнта.
@@ -48,25 +48,23 @@ export const load: LayoutLoad = async ({ data, depends, fetch }) => {
 
 	const supabasePrices = isBrowser()
 		? createClient(PUBLIC_SUPABASE_PRICES_URL, PUBLIC_SUPABASE_PRICES_ANON_KEY, {
-			global: {
-				headers: {
-					Authorization: `Bearer ${session?.access_token}`
+				global: {
+					headers: {
+						Authorization: `Bearer ${session?.access_token}`
+					}
 				}
-			}
-		})
+			})
 		: createServerClient(PUBLIC_SUPABASE_PRICES_URL, PUBLIC_SUPABASE_PRICES_ANON_KEY, {
-			global: {
-				headers: {
-					Authorization: `Bearer ${session?.access_token}`
+				global: {
+					headers: {
+						Authorization: `Bearer ${session?.access_token}`
+					}
+				},
+				cookies: {
+					getAll() {
+						return data.cookies;
+					}
 				}
-			},
-			cookies: {
-				getAll() {
-					return data.cookies;
-				}
-			}
-		});
-	console.log('Supabase Prices Client Initialized:', supabasePrices.supabaseUrl, isBrowser());
-
+			});
 	return { session, supabase, user, supabasePrices };
 };

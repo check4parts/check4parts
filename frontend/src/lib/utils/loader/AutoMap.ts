@@ -42,14 +42,14 @@ export type TemplateRow = {
 	type: 'rests' | 'prop';
 	header: string;
 	aliases?: string[];
-}
+};
 
 export type Template = {
 	template: TemplateRow[];
 	metadata: {
 		firstRowHeaders: boolean;
-	}
-}
+	};
+};
 
 export function autoMapHeaders(
 	headers: string[],

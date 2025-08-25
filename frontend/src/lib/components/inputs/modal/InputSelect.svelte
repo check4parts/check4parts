@@ -50,7 +50,7 @@
 	{placeholder}
 	{required}
 	defaultValue={intialValue ? [intialValue] : []}
-	zIndex=50
+	zIndex="50"
 >
 	{#snippet item(item)}
 		<div class="flex w-full justify-between space-x-2 overflow-clip outline-offset-2">
