@@ -1,19 +1,19 @@
 <script lang="ts">
-	import { PUBLIC_SUPABASE_PRICES_ANON_KEY, PUBLIC_SUPABASE_PRICES_URL } from '$env/static/public';
-	import InputSelect from '$lib/components/inputs/modal/InputSelect.svelte';
-	import { autoMapHeaders } from '$lib/utils/loader/AutoMap';
-	import { parseJwt } from '$lib/utils/loader/ParseJWT.js';
+	import { FileUpload } from '@skeletonlabs/skeleton-svelte';
+	import StepsBar from './(components)/StepsBar.svelte';
+	import { parseJwt } from '$lib/utils/loader/ParseJWT';
 	import { processFile } from '$lib/utils/loader/ProcessFile.js';
+	import InputSelect from '$lib/components/inputs/modal/InputSelect.svelte';
+	import TemplateModal from './(components)/TemplateModal.svelte';
+	import { autoMapHeaders, type Template } from '$lib/utils/loader/AutoMap';
 	import {
-		startWorkerUpload,
-		terminateWorkerUpload,
-		type AppSettings
-	} from '$lib/utils/loader/SupabaseUpload.js';
-	import {
+		checkHashExists,
 		StartTransformFileWorker,
-		type TransformedItem,
-		type MappedHeader
-	} from '$lib/utils/loader/TransformFile.svelte.js';
+		transformPreviewData,
+		type TransformedItem
+	} from '$lib/utils/loader/TransformFile.svelte';
+	import { startWorkerUpload, terminateWorkerUpload } from '$lib/utils/loader/SupabaseUpload';
+	import { PUBLIC_SUPABASE_PRICES_ANON_KEY, PUBLIC_SUPABASE_PRICES_URL } from '$env/static/public';
 
 	let { data } = $props();
 	let { providers, warehouses } = $derived(data);
@@ -21,108 +21,93 @@
 	let company_id = $derived<string>(parseJwt(data.session?.access_token || '')?.company_id || '');
 
 	let selected_provider = $state<string>('');
-	let files: File[]  = $state([]);
-	let fileLoading = $state(false);
-	let transformingData = $state(false);
-
-	let uploadingToDB = $state(false);
-	let uploadedToDB = $state(false);
-	let uploadDBMessage = $state('');
-	let uploadDBPercentage = $state(0);
-	let uploadedTotalCount = $state(0);
-
-	let settings: AppSettings = $state<AppSettings>({
-		startFrom: 2,
-		chunkSize: 3000,
-		concurrencyLimit: 3
-	});
-	let settingsCollapsed = $state(true);
-
-	let previewData: any[] = $state([]);
-	let fullFileData: any[] = $state.raw([]);
-	let transformedData: TransformedItem[] = $state.raw([]);
-	let fileTransformed = $state(false);
-	let hashFullTransformedData = $state('');
-	let loadedId: string | null = $state(null);
-	let processingMessage = $state('');
-	let processingPercentage = $state(0);
-	let errorMessage = $state('');
-
-	let fileHeaders: string[] = $state([]);
-	let firstRowHeaders: string[] = $state([]);
-	let mappedHeaders: MappedHeader[] = $state([]);
 
 	let currentProviderWarehouses = $derived(
 		warehouses.filter((warehouse) => warehouse.provider_id === selected_provider)
 	);
 
-	// Нова змінна стану для зберігання промісу перевірки хешу
-	let hashCheckPromise: Promise<{ loaded_id: string | null; hashExists: any[] }> | null =
-		$state(null);
+	let step = $state<number>(1);
+	let stepState = $state<'current' | 'error' | 'success'>('current');
+
+	let debug = $state(false);
+
+	let uploadedFiles = $state<File[]>([]);
+	let fileLoading = $state(false);
+
+	let uploadingToDB = $state(false);
+	let uploadedToDB = $state(false);
+	let uploadDBMessage = $state('');
+	let uploadDBPercentage = $state(0);
+	let uploadedCount = $state(0);
+	let totalCount = $state(0);
+
+	let previewData: any[] = $state([]);
+	let fileHeaders: string[] = $state([]);
+	let firstRowHeaders: string[] = $state([]);
+	let fullFileData: any[] = $state.raw([]);
+	let processingMessage = $state('');
+	let processingPercentage = $state(0);
+	let errorMessage = $state('');
+
+	let templateModalOpenState = $state(false);
+	let template = $state<Template>({ metadata: { firstRowHeaders: true }, template: [] });
+	let previewTransformedData = $derived(
+		transformPreviewData(previewData, template, selected_provider)
+	);
+
+	let templateComleated = $derived(
+		template.template.reduce((acc, row) => acc && row.header !== '', true) && selected_provider
+	);
+	let transformingData = $state(false);
+	let transformedData: TransformedItem[] = $state.raw([]);
+	let fileTransformed = $state(false);
+	let hashCheck = $state<{ loaded_id: string | null; hashExists: any[] }>({
+		loaded_id: null,
+		hashExists: []
+	});
+	let hashFullTransformedData: string = $state('');
 
 	$effect(() => {
-		mappedHeaders = autoMapHeaders(firstRowHeaders, currentProviderWarehouses);
+		if (previewData.length > 0) {
+			template.template = autoMapHeaders(Object.values(previewData[0]), currentProviderWarehouses);
+			console.log('Template changed:');
+		}
 	});
 
-	$inspect(mappedHeaders);
-	function toggleSettingsCollapse() {
-		settingsCollapsed = !settingsCollapsed;
-	}
-
-	async function checkHashExists(hash: string) {
-		// 1. Знаходимо loaded_id по hash
-		let { data: loaded_prices, error } = await data.supabasePrices
-  		.from('loaded_prices')
-  		.select('id')
-			.eq('hash', hash)
-			.single()
-
-		loadedId = loaded_prices?.id || null;
-		if (!loadedId) {
-			return {
-				loaded_id: null,
-				hashExists: []
-			};
+	$effect(() => {
+		if (step) {
+			stepState = 'current';
+			processingMessage = '';
+			processingPercentage = 0;
 		}
+	});
 
-		const { data: priceData } = await data.supabasePrices
-			.from('price_history')
-			.select('id', { count: 'exact' })
-			.eq('loaded_id', loadedId);
-		console.log('Hash Check Data:', priceData);
-		return {
-			loaded_id: loadedId || null,
-			hashExists: priceData || []
-		};
+	function getHeaderLabel(header: string, index: number): string {
+		if (header) {
+			return isNaN(parseInt(header)) ? header : `Колонка №${parseInt(header) + 1}`;
+		}
+		return `Колонка №${index + 1}`;
 	}
 
-	async function handleFileUpload(event: Event) {
-		event.preventDefault();
+	let headersLabels = $derived<string[]>(
+		(template.metadata.firstRowHeaders ? Object.values(previewData[0] ?? []) : fileHeaders).map(
+			(header, index) => getHeaderLabel(header as string, index)
+		)
+	);
+
+	async function handleFileUpload() {
 		uploadedToDB = false;
 
-		if (!files || files.length === 0) {
-			errorMessage = 'Будь ласка, оберіть файл для завантаження.';
-			return;
-		}
-
-		if (!selected_provider) {
-			errorMessage = 'Будь ласка, оберіть провайдера.';
-			return;
-		}
-
-		resetStatesForNewUpload();
-
-		await processFile(files, settings.startFrom - 1, 5, 0, {
+		await processFile(uploadedFiles, 1, 5, 0, {
 			onPreview: ({ previewData: data, metadata }) => {
 				console.log('Preview Data:', data);
 				previewData = data;
 				fileHeaders = metadata.headers;
-				firstRowHeaders = Object.values(data[0]);
 			},
 			onFull: ({ fileData: data }) => {
 				fullFileData = data;
 				fileLoading = false;
-				processingMessage = 'Обробка файлу завершена. Будь ласка, зіставте колонки.';
+				processingMessage = 'Обробка файлу завершена.';
 				processingPercentage = 100;
 			},
 			onProgress: ({ message, percentage }) => {
@@ -136,7 +121,6 @@
 				fileLoading = false;
 				processingMessage = 'Помилка обробки файлу.';
 				processingPercentage = 0;
-				resetErrorStates();
 			}
 		});
 	}
@@ -150,8 +134,8 @@
 		try {
 			// Викликаємо функцію StartTransformFileWorker, глибоко клонуючи fullFileData, щоб уникнути DataCloneError
 			const result = await StartTransformFileWorker(
-				fullFileData, // Глибоке клонування даних
-				$state.snapshot(mappedHeaders), // Глибоке клонування mappedHeaders,
+				$state.snapshot(fullFileData), // Глибоке клонування даних
+				$state.snapshot(template.template), // Глибоке клонування mappedHeaders,
 				selected_provider,
 				company_id,
 				data.session?.access_token || '', // Передаємо authToken
@@ -170,8 +154,7 @@
 
 			processingMessage = 'Дані успішно трансформовані! Тепер можете завантажити їх в базу даних.';
 			fileTransformed = true;
-			// Запускаємо початкову перевірку хешу після трансформації
-			hashCheckPromise = checkHashExists(hashFullTransformedData);
+			hashCheck = await checkHashExists(hashFullTransformedData, data.supabasePrices);
 		} catch (error: any) {
 			console.error('Error during data transformation:', error);
 			errorMessage = `Помилка трансформації даних: ${error.message || 'Невідома помилка'}`;
@@ -199,15 +182,14 @@
 			await startWorkerUpload(
 				transformedData,
 				$state.snapshot(hashFullTransformedData),
-				loadedId,
+				hashCheck.loaded_id,
 				selected_provider,
-				$state.snapshot(settings),
 				data.session?.access_token || '',
 				PUBLIC_SUPABASE_PRICES_URL,
 				PUBLIC_SUPABASE_PRICES_ANON_KEY,
 				({
-					uploadedCount,
-					totalCount,
+					uploadedCount: uploaded,
+					totalCount: total,
 					percentage,
 					message
 				}: {
@@ -218,13 +200,14 @@
 				}) => {
 					uploadDBMessage = message;
 					uploadDBPercentage = percentage;
-					uploadedTotalCount = uploadedCount;
+					uploadedCount = uploaded;
+					totalCount = total;
+					console.log(`Upload Progress: ${message} - ${percentage}%`);
+					console.log(`Uploaded Count: ${uploadedCount} / Total Count: ${totalCount}`);
 				}
 			);
 			uploadDBMessage = 'Дані успішно завантажено в базу даних!';
 			uploadedToDB = true;
-			// Повторно запускаємо перевірку хешу після успішного завантаження
-			hashCheckPromise = checkHashExists(hashFullTransformedData);
 		} catch (error: any) {
 			console.error('Error uploading to database:', error);
 			errorMessage = `Помилка завантаження до бази даних: ${error.message || 'Невідома помилка'}`;
@@ -232,14 +215,6 @@
 		} finally {
 			uploadingToDB = false;
 		}
-	}
-
-	function getColumnDisplayName(index: string, table: boolean = false): string {
-		const parsedIndex = parseInt(index, 10);
-		if (!isNaN(parsedIndex)) {
-			return table ? `${parsedIndex + 1}` : `Колонка ${parsedIndex + 1}`;
-		}
-		return index;
 	}
 
 	function resetStatesForNewUpload() {
@@ -253,387 +228,324 @@
 		firstRowHeaders = [];
 		transformingData = false;
 		fileTransformed = false;
+		selected_provider = '';
 		uploadingToDB = false;
 		uploadDBMessage = '';
 		uploadDBPercentage = 0;
 		uploadedToDB = false; // Скидаємо цей стан також
-		hashCheckPromise = null; // Скидаємо проміс перевірки хешу
+		hashCheck = { loaded_id: null, hashExists: [] }; // Скидаємо проміс перевірки хешу
 		terminateWorkerUpload();
 	}
 
-	function resetErrorStates() {
-		transformingData = false;
-		fileTransformed = false;
-		uploadingToDB = false;
-		uploadDBMessage = '';
-		uploadDBPercentage = 0;
+	function formatFileSize(bytes: number, decimals = 2) {
+		if (bytes === 0) return '0 Bytes';
+
+		const k = 1000;
+		const dm = decimals < 0 ? 0 : decimals;
+		const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+
+		const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+		return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 	}
 </script>
 
-<section class="bg-surface-50 my-5 w-full rounded-lg p-5">
-	<h3 class="mb-4 flex items-center justify-between text-xl font-semibold text-gray-800">
-		Налаштування
-		<button
-			class="rounded-full p-1 transition-all duration-200 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-			onclick={toggleSettingsCollapse}
-			aria-expanded={!settingsCollapsed}
-			aria-label={settingsCollapsed ? 'Розгорнути налаштування' : 'Згорнути налаштування'}
+<TemplateModal
+	bind:openState={templateModalOpenState}
+	modalClose={() => (templateModalOpenState = false)}
+	data={{
+		previewData,
+		fileHeaders,
+		headersLabels
+	}}
+	bind:template
+/>
+
+<header>
+	<h1 class="h4">Завантаження цін постачальників</h1>
+	<div class="mt-10 flex items-center justify-center">
+		<StepsBar bind:step {stepState} />
+	</div>
+</header>
+
+<section class="mt-4 max-h-[68vh] overflow-y-auto">
+	{#if step === 1 || debug}
+		<h2 class="h5 top-0 flex items-center gap-2 bg-white">
+			<img src="/step-1.svg" alt="Крок 1" /> Крок 1: Завантажте файл з цінами
+		</h2>
+		<form
+			aria-label="Завантаження файлу та вибір провайдера"
+			onsubmit={(e) => {
+				e.preventDefault();
+				handleFileUpload();
+			}}
 		>
-			<svg
-				class="h-5 w-5 text-gray-600 transition-transform duration-300"
-				class:rotate-180={!settingsCollapsed}
-				xmlns="http://www.w3.org/2000/svg"
-				fill="none"
-				viewBox="0 0 24 24"
-				stroke="currentColor"
-			>
-				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"
-				></path>
-			</svg>
-		</button>
-	</h3>
-	{#if !settingsCollapsed}
-		<div class="grid grid-cols-1 gap-4 transition-all duration-300 ease-out md:grid-cols-2">
-			<div class="flex flex-col">
-				<label for="startFromInput" class="mb-1 block text-sm font-medium text-gray-700"
-					>Почати обробку з рядка</label
-				>
-				<input
-					id="startFromInput"
-					type="number"
-					min="1"
-					bind:value={settings.startFrom}
-					placeholder="Наприклад, 2"
-					required
-					class="block w-full rounded-lg border border-gray-300 px-4 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500"
-				/>
-				<p class="mt-1 text-sm text-gray-500">
-					Вкажіть номер рядка, з якого почнеться обробка даних у файлі.
-				</p>
-			</div>
-
-			<div class="flex flex-col">
-				<label for="chunkSizeInput" class="mb-1 block text-sm font-medium text-gray-700"
-					>Розмір чанка</label
-				>
-				<input
-					id="chunkSizeInput"
-					type="number"
-					min="1"
-					bind:value={settings.chunkSize}
-					required
-					class="block w-full rounded-lg border border-gray-300 px-4 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500"
-				/>
-				<p class="mt-1 text-sm text-gray-500">
-					Вкажіть максимальну кількість рядків для обробки в одному чанку. Більші чанки швидші, але
-					вимагають більше пам'яті.
-				</p>
-			</div>
-
-			<div class="flex flex-col">
-				<label for="concurrencyLimitInput" class="mb-1 block text-sm font-medium text-gray-700"
-					>Паралельні завантаження</label
-				>
-				<input
-					id="concurrencyLimitInput"
-					type="number"
-					min="1"
-					bind:value={settings.concurrencyLimit}
-					required
-					class="block w-full rounded-lg border border-gray-300 px-4 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500"
-				/>
-				<p class="mt-1 text-sm text-gray-500">
-					Визначте кількість чанків, які будуть завантажуватися паралельно. Більше паралельних
-					завантажень може пришвидшити процес, але збільшує навантаження на базу даних.
-				</p>
-			</div>
-		</div>
-	{/if}
-</section>
-
-<section class="bg-surface-50 w-full rounded-lg p-5">
-	<form
-		aria-label="Завантаження файлу та вибір провайдера"
-		class="mx-auto flex flex-row justify-between gap-4"
-		onsubmit={handleFileUpload}
-	>
-		<label for="fileInput" class="w-full">
-			<span class="label">Оберіть файл для завантаження</span>
-			<!-- <input
-				id="fileInput"
-				class="focus:border-primary-500 mt-1 h-12 w-full rounded-md bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:outline-none"
-				type="file"
+			<FileUpload
+				name="priceFile"
 				accept=".xlsx,.xls,.csv,.txt"
-				bind:files
-				required
-			/> -->
-		</label>
-		<InputSelect
-			items={providers.map((provider) => ({
-				label: provider.name,
-				value: provider.id
-			}))}
-			bind:value={selected_provider}
-			label="Оберіть провайдера"
-			placeholder="Виберіть зі списку"
-			name="provider-select"
-			required
-		/>
-
-		<button
-			class="btn preset-filled-primary-950-50"
-			type="submit"
-			disabled={fileLoading || !files || files.length === 0 || !selected_provider}
-			aria-busy={fileLoading}
-		>
-			{#if fileLoading}
-				Обробка...
-			{:else}
-				Завантажити файл
-			{/if}
-		</button>
-	</form>
-
-	{#if errorMessage}
-		<p class="mt-4 text-red-600">{errorMessage}</p>
-	{/if}
-
-	{#if processingMessage}
-		<div class="mt-4">
-			<p class="text-sm text-gray-700">{processingMessage}</p>
-			<div class="mt-2 h-2.5 w-full rounded-full bg-gray-200">
-				<div class="h-2.5 rounded-full bg-blue-600" style="width: {processingPercentage}%"></div>
-			</div>
-		</div>
-	{/if}
-
-	{#if previewData.length > 0}
-		<div class="mt-4">
-			<div>
-				<div class="flex h-9 gap-4">
-					<div class="badge preset-filled-primary-50-950 text-md">
-						<i class="fas fa-file"></i> Розмір: {files ? (files[0].size / 1024).toFixed(2) : '0.00'}
-						KB
+				maxFiles={1}
+				onFileChange={(e) => {
+					const files = e.acceptedFiles;
+					resetStatesForNewUpload();
+					console.log('Selected files:', e);
+					if (files.length > 0) {
+						uploadedFiles = files;
+					} else {
+						stepState = 'error';
+					}
+				}}
+				classes="w-full"
+				label="Виберіть файл"
+			>
+				{#snippet iconInterface()}<img src="/upload-icon.svg" alt="upload" />{/snippet}
+				{#snippet iconFile()}<img src="/step-1.svg" alt="File" />{/snippet}
+			</FileUpload>
+			{#if !fullFileData.length}
+				{#if uploadedFiles.length}
+					<div class="mt-4 flex w-full gap-2">
+						<button class="btn preset-filled-primary-950-50" type="submit" aria-busy={fileLoading}>
+							Завантажити файл
+						</button>
+						{#if processingMessage}
+							<div class="w-full">
+								<p class="text-sm text-gray-700">{processingMessage}</p>
+								<div class="h-2.5 w-full rounded-full bg-gray-200">
+									<div
+										class="h-2.5 rounded-full bg-blue-600"
+										style="width: {processingPercentage}%"
+									></div>
+								</div>
+							</div>
+						{/if}
 					</div>
-					<div class="badge preset-filled-primary-50-950 text-md">
+				{/if}
+			{:else}
+				<p class="card preset-tonal-success mt-4 w-full p-4 text-center">
+					Дані успішно оброблено. Ви можете перейти до наступного кроку для перевірки даних.
+				</p>
+				<div class="flex justify-end">
+					<button
+						class="btn preset-filled-primary-950-50 mt-4"
+						onclick={() => {
+							step = 2;
+						}}
+					>
+						Далі
+					</button>
+				</div>
+			{/if}
+		</form>
+	{:else if step === 2 || debug}
+		<h2 class="h5 sticky top-0 flex items-center gap-2 bg-white">
+			<img src="/step-2.svg" alt="Крок 2" /> Крок 2: Перевірте дані
+		</h2>
+		<section class="mt-4" id="settings">
+			<div>
+				<p class="text-md font-bold text-gray-700">Виберіть постачальника:</p>
+				<div class="z-50 w-full rounded-lg border-2 border-gray-200 bg-white">
+					<InputSelect
+						placeholder="Виберіть зі списку"
+						name="provider"
+						items={providers.map((provider) => ({
+							label: provider.name,
+							value: provider.id
+						}))}
+						required
+						bind:value={selected_provider}
+						intialValue={selected_provider}
+					/>
+				</div>
+			</div>
+		</section>
+		<section class="mt-4" id="basic-info">
+			<div class="flex items-center justify-between">
+				<div class="flex h-9 gap-4">
+					<div class="badge preset-filled-surface-100-900 text-md">
+						<i class="fas fa-file"></i>
+						Розмір: {uploadedFiles.length > 0 ? formatFileSize(uploadedFiles[0].size) : '0 B'}
+					</div>
+					<div class="badge preset-filled-surface-100-900 text-md">
 						<i class="fas fa-list"></i> Рядків: {fullFileData.length}
 					</div>
-					<div class="badge preset-filled-primary-50-950 text-md">
-						<i class="fas fa-calendar"></i> Дата: {files
-							? new Date(files[0].lastModified).toLocaleDateString('uk')
+					<div class="badge preset-filled-surface-100-900 text-md">
+						<i class="fas fa-calendar"></i> Дата: {uploadedFiles.length > 0
+							? new Date(uploadedFiles[0].lastModified).toLocaleDateString('uk')
 							: 'N/A'}
 					</div>
-					{#if fileTransformed}
-						<div class="badge preset-filled-primary-50-950 text-md">
-							<i class="fas fa-fingerprint"></i> Хеш: {hashFullTransformedData.slice(0, 8)}
-						</div>
-						{#if hashCheckPromise}
-							{#await hashCheckPromise then data}
-								{#if loadedId}
-									<div class="badge preset-filled-success-50-950 text-md">
-										<i class="fas fa-check"></i> Файл вже є
-									</div>
-								{/if}
-								{#if data.hashExists.length === 0}
-									<div class="badge preset-filled-success-50-950 text-md">
-										<i class="fas fa-check"></i> Хеш не існує
-									</div>
-								{:else}
-									<a
-										href="/home/prices/{data.hashExists[0].id}"
-										target="_blank"
-										class="badge preset-filled-error-50-950 text-md hover:bg-red-100"
-									>
-										<i class="fas fa-times"></i> Хеш існує
-									</a>
-								{/if}
-								<div class="text-center">
-									<button
-										class="btn preset-filled-primary-950-50"
-										onclick={handleUploadToDatabase}
-										disabled={uploadingToDB || !selected_provider || data.hashExists.length > 0}
-										aria-busy={uploadingToDB}
-									>
-										{#if uploadingToDB}
-											Завантаження в БД...
-										{:else}
-											{data.hashExists.length > 0
-												? 'Таки файл ви вже завантажували'
-												: 'Завантажити в БД'}
-										{/if}
-									</button>
-								</div>
-							{:catch error}
-								<div class="badge preset-filled-primary-50-950 text-md">
-									<i class="fas fa-exclamation-triangle"></i> Помилка перевірки хешу: {error.message}
-								</div>
-							{/await}
-						{/if}
-					{/if}
+				</div>
+				<div>
+					<button
+						class="btn preset-filled-primary-100-900 font-bold"
+						onclick={() => {
+							templateModalOpenState = true;
+						}}
+						aria-label="Налаштування колонок"
+					>
+						<i class="fas fa-gear"></i> Налаштування колонок
+					</button>
 				</div>
 			</div>
-		</div>
-
-		{#if uploadingToDB}
-			<div class="mt-4">
-				<p class="text-sm text-gray-700">{uploadDBMessage}</p>
-				<div class="mt-2 h-2.5 w-full rounded-full bg-gray-200">
-					<div class="h-2.5 rounded-full bg-green-600" style="width: {uploadDBPercentage}%"></div>
-				</div>
-			</div>
-		{/if}
-
-		{#if uploadedToDB}
-			<div class="mt-4">
-				<p class="text-sm text-green-600">Дані успішно завантажено в базу даних!</p>
-				<p class="text-sm text-gray-500">
-					Завантажено {uploadedTotalCount} записів для провайдера {providers.find(
-						(p) => p.id === selected_provider
-					)?.name || selected_provider}.
-				</p>
-			</div>
-		{/if}
-
-		<!-- {#if !fileTransformed} -->
-		<div class="mt-4 overflow-x-auto">
-			<table class="min-w-full divide-y divide-gray-200 overflow-hidden rounded-lg shadow-sm">
-				<thead class="bg-gray-50">
-					<tr>
-						{#each fileHeaders as fileHeader}
-							<th
-								scope="col"
-								class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
-							>
-								{getColumnDisplayName(fileHeader, true)}
-							</th>
-						{/each}
-					</tr>
-				</thead>
-				<tbody class="divide-y divide-gray-200 bg-white">
-					{#each previewData as row}
-						<tr>
-							{#each fileHeaders as fileHeader}
-								<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
-									{row[fileHeader]}
-								</td>
-							{/each}
-						</tr>
-					{/each}
-				</tbody>
-			</table>
-		</div>
-
-		<div class="mt-8">
-			<h4 class="mb-3 text-lg font-semibold text-gray-800">
-				Зіставлення колонок та попередній перегляд:
-			</h4>
-
-			<div class="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2">
-				{#each mappedHeaders as headerMap, index (headerMap.value)}
-					<div class="flex flex-col">
-						<label for="map-{headerMap.value}" class="mb-1 block text-sm font-medium text-gray-700">
-							{headerMap.name} ({headerMap.type === 'prop' ? 'Властивість' : 'Залишки'})
-						</label>
-						<select
-							id="map-{headerMap.value}"
-							bind:value={mappedHeaders[index].header}
-							class="block w-full rounded-lg border border-gray-300 px-4 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-						>
-							<option value="">Не обрано</option>
-							{#each fileHeaders as fileHeader}
-								<option value={fileHeader}>{getColumnDisplayName(fileHeader)}</option>
-							{/each}
-						</select>
-						{#if headerMap.header === ''}
-							<p class="mt-1 text-xs text-red-500">
-								Цей заголовок не знайдено автоматично. Будь ласка, оберіть вручну.
-							</p>
-						{/if}
-					</div>
-				{/each}
-			</div>
-			<p class="text-sm text-gray-500">
-				Ви можете змінити зіставлення колонок, щоб відповідати вашому файлу. Після завершення
-				зіставлення, натисніть "Завершити зіставлення" для обробки даних.
-			</p>
-			<button
-				class="btn preset-filled-primary-950-50 mt-4"
-				onclick={handleTransformData}
-				disabled={transformingData || fileLoading}
-				aria-busy={transformingData}
-			>
-				{#if transformingData}
-					Трансформація...
-				{:else}
-					Завершити зіставлення
-				{/if}
-			</button>
-		</div>
-	{/if}
-	<!-- {/if} -->
-
-	{#if fileTransformed && fullFileData.length > 0}
-		<div class="mt-8">
-			<h4 class="mb-3 text-lg font-semibold text-gray-800">
-				Трансформовані дані (перші 5 записів):
-			</h4>
-			<div class="overflow-x-auto">
-				<table class="min-w-full divide-y divide-gray-200 overflow-hidden rounded-lg shadow-sm">
-					<thead class="bg-gray-50">
-						<tr>
-							<th
-								scope="col"
-								class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
-								>Бренд</th
-							>
-							<th
-								scope="col"
-								class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
-								>Код Бренду</th
-							>
-							<th
-								scope="col"
-								class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
-								>Ціна</th
-							>
-							<th
-								scope="col"
-								class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
-								>Опис</th
-							>
-							<th
-								scope="col"
-								class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
-								>Залишки (Склади)</th
-							>
-						</tr>
-					</thead>
-					<tbody class="divide-y divide-gray-200 bg-white">
-						{#each (transformedData as TransformedItem[]).slice(0, 5) as item}
-							<tr>
-								<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-900">{item.brand}</td>
-								<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-900">{item.article}</td>
-								<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-900">{item.price}</td>
-								<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-900">{item.description}</td
-								>
-								<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
-									{#each Object.entries(item.rests) as [warehouseId, count]}
-										<div>
-											{currentProviderWarehouses.find((wh) => wh.id === warehouseId)?.name ||
-												warehouseId}: {count}
-										</div>
+		</section>
+		<section class="mt-4" id="dataPreview">
+			<h3 class="h5">Попередній перегляд:</h3>
+			{#if previewData.length > 0}
+				<div class="border-primary-950 overflow-hidden rounded-xl border-2">
+					<div class="max-h-[70vh] overflow-y-auto">
+						<table class="table min-w-full table-auto border-collapse">
+							<thead class="bg-primary-950 sticky top-0">
+								<tr class="text-primary-50">
+									{#each headersLabels as header}
+										<th class="px-4 py-2 text-left">{header}</th>
 									{/each}
-								</td>
-							</tr>
-						{/each}
-					</tbody>
-				</table>
-			</div>
-			{#if fullFileData.length > 5}
-				<p class="mt-2 text-sm text-gray-600">
-					...та ще {transformedData.length - 5} рядків. ({fullFileData.length - 5})
+								</tr>
+							</thead>
+							<tbody class="!divide-primary-950 !divide-y-2">
+								{#each template.metadata.firstRowHeaders ? previewData.slice(1) : previewData as row}
+									<tr class="hover:bg-primary-50 group w-full divide-x-2">
+										{#each Object.values(row) as cell}
+											<td class="whitespace-nowrap px-4 py-2">{cell}</td>
+										{/each}
+									</tr>
+								{/each}
+							</tbody>
+						</table>
+					</div>
+				</div>
+			{/if}
+		</section>
+		{#if previewTransformedData.length > 0}
+			<section class="mt-4">
+				<h3 class="h5">Співставлені дані:</h3>
+				<div class="border-primary-950 overflow-hidden rounded-xl border-2">
+					<div class="max-h-[70vh] overflow-y-auto">
+						<table class="table min-w-full table-auto border-collapse">
+							<thead class="bg-primary-950 sticky top-0">
+								<tr class="text-primary-50">
+									{#each template.template as col}
+										<th class="px-4 py-2 text-left">{col.name}</th>
+									{/each}
+								</tr>
+							</thead>
+							<tbody class="!divide-primary-950 !divide-y-2">
+								{#each previewTransformedData as row}
+									<tr class="hover:bg-primary-50 group w-full divide-x-2">
+										{#each template.template as col}
+											<td class="px-4 py-2 text-sm">
+												{#if col.type === 'rests'}
+													{row.rests?.[col.value] || 0}
+												{:else}
+													{row[col.value] || ''}
+												{/if}
+											</td>
+										{/each}
+									</tr>
+								{/each}
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</section>
+		{/if}
+		<section class="mt-4">
+			{#if templateComleated}
+				<div class="flex w-full gap-4">
+					<button
+						class="btn preset-filled-primary-950-50"
+						onclick={() => {
+							step = 3;
+							handleTransformData();
+						}}
+					>
+						Далі
+					</button>
+				</div>
+				{#if errorMessage}
+					<p class="text-error-500">{errorMessage}</p>
+				{/if}
+			{:else}
+				<p class="text-error-500">
+					Будь ласка, налаштуйте всі колонки перед переходом до наступного кроку.
 				</p>
 			{/if}
-		</div>
+		</section>
+	{:else if step === 3 || debug}
+		<header>
+			<h2 class="h5 flex items-center gap-2">
+				<img src="/step-3.svg" alt="Крок 3" /> Крок 3: Завантажте дані в базу
+			</h2>
+		</header>
+		<section class="mt-4">
+			<div class="flex h-8 items-center justify-start gap-4">
+				<button
+					class="btn preset-filled-success-100-900 h-full font-bold"
+					onclick={handleUploadToDatabase}
+				>
+					<i class="fa-regular fa-floppy-disk"></i>
+					Зберегети ціни
+				</button>
+				<button class="btn preset-filled-error-100-900 h-full font-bold" onclick={() => (step = 1)}>
+					<i class="fa-regular fa-circle-xmark"></i>
+					Відмінити
+				</button>
+				{#if hashCheck.loaded_id}
+					<div class="badge preset-filled-warning-100-900 h-full">
+						<i class="fas fa-exclamation-triangle"></i>
+						Увага! Ціни з таким самим вмістом вже існують у базі даних. Буде надано доступ до вже завантажених
+						цін.
+					</div>
+				{/if}
+			</div>
+			<div class="mt-4">
+				{#if processingMessage && !fileTransformed}
+					<div class="w-full">
+						<p class="text-sm text-gray-700">{processingMessage}</p>
+						<div class="h-2.5 w-full rounded-full bg-gray-200">
+							<div
+								class="h-2.5 rounded-full bg-blue-600"
+								style="width: {processingPercentage}%"
+							></div>
+						</div>
+					</div>
+				{/if}
+				{#if fileTransformed && !uploadedToDB}
+					<div class="card preset-tonal-primary mt-4 w-full p-4 text-center">
+						<p class="text-md font-bold">Готово до завантаження</p>
+					</div>
+				{/if}
+				{#if uploadedToDB}
+					<div class="card preset-tonal-success mt-4 w-full p-4 text-center">
+						<p class="text-md font-bold">Прайс-лист успішно збережено. Дані постачальника оновлено.</p>
+					</div>
+				{/if}
+				{#if errorMessage}
+					<p class="text-error-500 mt-2">{errorMessage}</p>
+				{/if}
+			</div>
+		</section>
+		<section class="mt-4">
+			<h3 class="h5">
+				<i class="fa fa-circle-info"></i>
+				Інформація про завантаження
+			</h3>
+			<div class="flex h-9 gap-4">
+				<div class="badge preset-filled-surface-100-900 text-md">
+					<i class="fas fa-file"></i> Рядків у файлі: {fullFileData.length}
+				</div>
+				<div class="badge preset-filled-surface-100-900 text-md">
+					<i class="fas fa-list"></i> Всього рядків: {transformedData.length}
+				</div>
+				<div class="badge preset-filled-surface-100-900 text-md">
+					<i class="fas fa-circle-check"></i> Прогружено рядків: {uploadedCount} з {totalCount}
+				</div>
+			</div>
+			{#if uploadingToDB}
+				<div class="mt-4">
+					<p class="text-sm text-gray-700">{uploadDBMessage}</p>
+					<div class="mt-2 h-2.5 w-full rounded-full bg-gray-200">
+						<div class="h-2.5 rounded-full bg-green-600" style="width: {uploadDBPercentage}%"></div>
+					</div>
+				</div>
+			{/if}
+		</section>
 	{/if}
 </section>

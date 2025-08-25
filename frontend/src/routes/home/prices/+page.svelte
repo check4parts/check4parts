@@ -5,7 +5,7 @@
 
 {#snippet priceHistoryTable(price_history: any[])}
 	<div class="border-primary-950 overflow-hidden rounded-xl border-2">
-		<div class="max-h-[84vh] overflow-y-auto">
+		<div class="max-h-[79vh] overflow-y-auto">
 			<table class="table min-w-full border-collapse">
 				<thead class="bg-primary-950 sticky top-0 z-10">
 					<tr class="text-primary-50">
