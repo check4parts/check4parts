@@ -53,6 +53,23 @@ class SearchProductsRequest(BaseModel):
     per_page: int = Field(20, ge=1, le=100, description="Items per page")
 
 
+class ProductResponse(BaseModel):
+    id: str
+    name: str
+    code: str
+    description: str
+    image: str
+    brand: str
+
+
+class SearchProductsResponse(BaseModel):
+    products: List[ProductResponse]
+    total: int
+    page: int
+    per_page: int
+    total_pages: int
+
+
 async def handle_api_errors(func, *args, **kwargs):
     try:
         return await func(*args, **kwargs)
@@ -180,7 +197,7 @@ async def search_products_query(
     category_id: Optional[int] = Query(None, gt=0, description="Category ID filter"),
     page: int = Query(1, ge=1, description="Page number"),
     per_page: int = Query(20, ge=1, le=100, description="Items per page"),
-):
+) -> SearchProductsResponse:
     async with ASGAdapter() as adapter:
         return await handle_api_errors(
             adapter.search_products, query, category_id, page, per_page

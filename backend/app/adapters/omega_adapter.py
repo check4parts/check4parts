@@ -6,6 +6,7 @@ from datetime import datetime
 
 import httpx
 
+from app.api.omega import ProductSearchItem, ProductSearchResponse
 from app.config import OMEGA_KEY
 
 logger = logging.getLogger(__name__)
@@ -93,6 +94,19 @@ class OmegaAdapter:
             raise OmegaAPIError(400, error_msg, {"errors": errors})
 
         return data
+
+    def _transform_product_item(self, item: Dict[str, Any]) -> ProductSearchItem:
+        """Transform API response item to ProductSearchItem with proper field mapping"""
+        return ProductSearchItem(
+            id=str(item.get("Id", item.get("id", ""))),
+            name=str(item.get("Name", item.get("name", item.get("title", "")))),
+            code=str(item.get("Code", item.get("code", item.get("sku", "")))),
+            description=str(item.get("Description", item.get("description", ""))),
+            image=str(item.get("Image", item.get("image", item.get("imageUrl", "")))),
+            brand=str(
+                item.get("Brand", item.get("brand", item.get("manufacturer", "")))
+            ),
+        )
 
     async def _make_request(
         self,
@@ -866,14 +880,14 @@ class OmegaAdapter:
             json_data=json_data,
         )
 
-    # Search endpoints
     async def search_products(
         self,
         search_phrase: str,
         rest: int = 0,
         from_index: int = 0,
         count: int = 20,
-    ) -> Dict[str, any]:
+    ) -> ProductSearchResponse:
+
         search_phrase = self._validate_non_empty_string(search_phrase, "SearchPhrase")
         if not isinstance(rest, int) or rest < 0:
             raise OmegaAPIError(400, "Rest must be a non-negative integer")
@@ -888,8 +902,32 @@ class OmegaAdapter:
             "From": from_index,
             "Count": count,
         }
-        return await self._make_request(
+
+        response_data = await self._make_request(
             "POST", "/public/api/v1.0/product/search", json_data=json_data
+        )
+
+        data = response_data.get("Data", {})
+        items_data = data.get("Items", []) if isinstance(data, dict) else []
+
+        transformed_items = []
+        for item in items_data:
+            try:
+                transformed_item = self._transform_product_item(item)
+                transformed_items.append(transformed_item)
+            except Exception as e:
+                logger.warning(f"Failed to transform item {item}: {e}")
+                continue
+
+        return ProductSearchResponse(
+            items=transformed_items,
+            total_count=(
+                data.get("TotalCount", len(transformed_items))
+                if isinstance(data, dict)
+                else len(transformed_items)
+            ),
+            from_index=from_index,
+            count=len(transformed_items),
         )
 
     async def search_brand(
