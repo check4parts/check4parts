@@ -11,7 +11,7 @@
 		editPage: boolean;
 		data: {
 			title: string;
-			value: string;
+			value?: string;
 			placeholder: string;
 			type: string;
 			name: string;
@@ -27,7 +27,7 @@
 		},
 		editPage = $bindable(),
 		form = $bindable(),
-		data,
+		data = $bindable(),
 		id
 	}: Props = $props();
 
@@ -71,7 +71,8 @@
 								lable={item.title}
 								name={item.name}
 								placeholder={item.placeholder}
-								defaultValue={item.value}
+								defaultValue={item.value ?? ''}
+								value={item.value ?? ''}
 							/>
 						{/if}
 					{/each}

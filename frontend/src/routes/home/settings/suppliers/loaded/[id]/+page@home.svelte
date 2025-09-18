@@ -73,8 +73,9 @@
 
 	<section class="overflow-hidden flex flex-col">
 		{#await price}
-			<p class="text-center text-gray-500">Завантаження прайсу...</p>
+			<p class="text-center text-gray-500">Завантаження попереднього перегялду прайсу...</p>
 		{:then prices}
+			<h4 class="text-lg font-bold">Попередній перегляд</h4>
 			{@const localWarehouses = warehouses.filter((w) => {
 				return Object.keys(prices[1]?.rests).includes(w.id);
 			})}
