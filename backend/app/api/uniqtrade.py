@@ -118,7 +118,7 @@ async def handle_api_errors(func, *args, **kwargs):
         }
 
 
-@router.get("/search/products{oem}")
+@router.get("/search/products/{oem}")
 async def search_by_oem(
     oem: str,
     info: Optional[int] = Query(
@@ -170,7 +170,7 @@ async def search_parts(request: SearchRequest):
             )
 
 
-@router.get("/search/products{oem}/brand/{brand}")
+@router.get("/search/products/{oem}/brand/{brand}")
 async def search_by_oem_and_brand(
     oem: str,
     brand: str,
