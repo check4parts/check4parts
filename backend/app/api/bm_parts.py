@@ -201,13 +201,13 @@ async def get_bm_parts_carts_count():
     return await adapter.get_carts_count()
 
 
-@router.post("/bm_parts/carts/union/")
+@router.post("/carts/union/")
 async def post_bm_parts_union_carts(carts_array: list):
     adapter = BMPartsAdapter()
     return await adapter.union_carts(carts_array)
 
 
-@router.post("/bm_parts/change_product/")
+@router.post("/change_product/")
 async def post_bm_parts_change_product_in_cart(
     cart_uuid: str, from_product_uuid: str, to_product_uuid: str
 ):
@@ -223,7 +223,7 @@ async def get_bm_parts_cart_products(request: CartsWarehousesRequest):
     return await adapter.get_cart_products(request.cart_uuid, request.warehouses)
 
 
-@router.post("/bm_parts/change_owner/")
+@router.post("/change_owner/")
 async def post_bm_parts_change_cart_owner(cart_uuid: str, client_uuid: str):
     adapter = BMPartsAdapter()
     return await adapter.change_cart_owner(cart_uuid, client_uuid)
@@ -235,7 +235,7 @@ async def get_bm_parts_reserves(response_fields: str = "all"):
     return await adapter.get_reserves(response_fields)
 
 
-@router.delete("/bm_parts/reserves/")
+@router.delete("/reserves/")
 async def delete_bm_parts_reserves(orders: list):
     adapter = BMPartsAdapter()
     return await adapter.delete_reserves(orders)
@@ -247,13 +247,13 @@ async def get_bm_parts_carts():
     return await adapter.get_carts()
 
 
-@router.post("/bm_parts/shopping/carts/")
+@router.post("/shopping/carts/")
 async def create_bm_parts_cart(name: str, products: list = None):
     adapter = BMPartsAdapter()
     return await adapter.create_cart(name, products)
 
 
-@router.post("/bm_parts/shopping/cart/{cart_uuid}/product/{product_uuid}/{quantity}")
+@router.post("/shopping/cart/{cart_uuid}/product/{product_uuid}/{quantity}")
 async def add_product_to_bm_parts_cart(
     cart_uuid: str, product_uuid: str, quantity: int
 ):
@@ -261,7 +261,7 @@ async def add_product_to_bm_parts_cart(
     return await adapter.add_product_to_cart(cart_uuid, product_uuid, quantity)
 
 
-@router.put("/bm_parts/shopping/cart/{cart_uuid}/product/{product_uuid}/{quantity}")
+@router.put("/shopping/cart/{cart_uuid}/product/{product_uuid}/{quantity}")
 async def update_product_in_bm_parts_cart(
     cart_uuid: str, product_uuid: str, quantity: int
 ):
@@ -271,13 +271,13 @@ async def update_product_in_bm_parts_cart(
     )
 
 
-@router.delete("/bm_parts/shopping/cart/{cart_uuid}/product/{product_uuid}")
+@router.delete("/shopping/cart/{cart_uuid}/product/{product_uuid}")
 async def delete_product_from_bm_parts_cart(cart_uuid: str, product_uuid: str):
     adapter = BMPartsAdapter()
     return await adapter.delete_product_from_cart(cart_uuid, product_uuid)
 
 
-@router.delete("/bm_parts/shopping/cart/")
+@router.delete("/shopping/cart/")
 async def delete_bm_parts_cart(cart_uuid: str):
     adapter = BMPartsAdapter()
     return await adapter.delete_cart(cart_uuid)
@@ -289,7 +289,7 @@ async def get_bm_parts_cart(cart_uuid: str):
     return await adapter.get_cart(cart_uuid)
 
 
-@router.post("/bm_parts/shopping/cart/{cart_uuid}")
+@router.post("/shopping/cart/{cart_uuid}")
 async def update_bm_parts_cart(
     cart_uuid: str, name: str = None, owner_uuid: str = None
 ):
@@ -347,7 +347,7 @@ async def get_reclamations(page: int = 1, per_page: int = 10, direction: str = "
     return await adapter.get_reclamations(page, per_page, direction)
 
 
-@router.post("/bm_parts/reclamation/")
+@router.post("/reclamation/")
 async def create_reclamation(data: dict):
     adapter = BMPartsAdapter()
     return await adapter.create_reclamation(data)
@@ -371,7 +371,7 @@ async def get_sold_products(
     return await adapter.get_sold_products(page, per_page, direction, reason, q)
 
 
-@router.delete("/bm_parts/returns/products/{uuid}")
+@router.delete("/returns/products/{uuid}")
 async def delete_product_return(uuid: str):
     adapter = BMPartsAdapter()
     return await adapter.delete_product_return(uuid)
@@ -383,7 +383,7 @@ async def get_return_products():
     return await adapter.get_return_products()
 
 
-@router.post("/bm_parts/returns/request/")
+@router.post("/returns/request/")
 async def create_return_request(request_data: dict):
     adapter = BMPartsAdapter()
     return await adapter.create_return_request(request_data)
@@ -395,7 +395,7 @@ async def get_return_causes():
     return await adapter.get_return_causes()
 
 
-@router.post("/bm_parts/returns/notify/")
+@router.post("/returns/notify/")
 async def notify_return(text: str):
     adapter = BMPartsAdapter()
     return await adapter.notify_return(text)
