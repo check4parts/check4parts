@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 from app.adapters.bm_parts_adapter import BMPartsAdapter
 
-router = APIRouter(prefix="/bm_parts", tags=["BM Parts"])
+router = APIRouter(prefix="/bm-parts", tags=["BM Parts"])
 
 
 class ReservedProductsUUIDRequest(BaseModel):
