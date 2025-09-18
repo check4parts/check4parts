@@ -6,6 +6,7 @@ from urllib.parse import urljoin
 
 import httpx
 
+from app.api.uniqtrade import ProductResult
 from app.config import UNIQTRADE_EMAIL, UNIQTRADE_PASSWORD, UNIQTRADE_FINGERPRINT
 
 logger = logging.getLogger(__name__)
@@ -189,6 +190,50 @@ class UniqTradeAdapter:
                     f"Network error during token refresh after {self.MAX_RETRIES} attempts: {str(e)}",
                 )
 
+    def _transform_product_data(self, raw_data: Dict[str, Any]) -> ProductResult:
+        """Transform raw API response to ProductResult format"""
+        return ProductResult(
+            id=str(raw_data.get("id", "")),
+            name=str(raw_data.get("name", raw_data.get("title", ""))),
+            code=str(
+                raw_data.get("code", raw_data.get("article", raw_data.get("oem", "")))
+            ),
+            description=str(raw_data.get("description", raw_data.get("desc", ""))),
+            image=str(
+                raw_data.get("image", raw_data.get("img", raw_data.get("photo", "")))
+            ),
+            brand=str(raw_data.get("brand", raw_data.get("manufacturer", ""))),
+        )
+
+    def _transform_search_response(
+        self, response: Dict[str, Any]
+    ) -> List[ProductResult]:
+        """Transform API search response to list of ProductResult"""
+        products = []
+
+        if "data" in response:
+            data = response["data"]
+        else:
+            data = response
+
+        if isinstance(data, list):
+            for item in data:
+                products.append(self._transform_product_data(item))
+        elif isinstance(data, dict):
+            if "products" in data:
+                for item in data["products"]:
+                    products.append(self._transform_product_data(item))
+            elif "items" in data:
+                for item in data["items"]:
+                    products.append(self._transform_product_data(item))
+            elif "results" in data:
+                for item in data["results"]:
+                    products.append(self._transform_product_data(item))
+            else:
+                products.append(self._transform_product_data(data))
+
+        return products
+
     async def _ensure_authenticated(self) -> None:
         """Ensure we have a valid authentication token"""
         if self._is_token_expired():
@@ -275,49 +320,37 @@ class UniqTradeAdapter:
 
     async def search_by_oem(
         self, oem: str, include_info: bool = False, language: str = "ua"
-    ) -> Dict[str, Any]:
-        """
-        Search for parts by OEM/article number
-
-        Args:
-            oem: Part article/OEM number
-            include_info: Whether to include additional info (images, characteristics)
-            language: Response language ('ua' or 'ru')
-        """
+    ) -> List[ProductResult]:
         oem = self._validate_non_empty_string(oem, "OEM")
-
         endpoint = f"/api/search/{oem}"
         params = {}
+
         if include_info:
             params["info"] = "1"
 
-        return await self._make_authenticated_request(
+        response = await self._make_authenticated_request(
             "GET", endpoint, params=params, language=language
         )
 
+        return self._transform_search_response(response)
+
     async def search_by_oem_and_brand(
         self, oem: str, brand: str, include_info: bool = False, language: str = "ua"
-    ) -> Dict[str, Any]:
-        """
-        Search for parts by OEM/article number and brand
-
-        Args:
-            oem: Part article/OEM number
-            brand: Brand name or external code
-            include_info: Whether to include additional info (images, characteristics)
-            language: Response language ('ua' or 'ru')
-        """
+    ) -> List[ProductResult]:
         oem = self._validate_non_empty_string(oem, "OEM")
         brand = self._validate_non_empty_string(brand, "Brand")
 
         endpoint = f"/api/search/{oem}"
         params = {"brand": brand}
+
         if include_info:
             params["info"] = "1"
 
-        return await self._make_authenticated_request(
+        response = await self._make_authenticated_request(
             "GET", endpoint, params=params, language=language
         )
+
+        return self._transform_search_response(response)
 
     async def get_detail_applicability(
         self, detail_id: int, language: str = "ua"

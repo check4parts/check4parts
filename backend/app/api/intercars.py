@@ -10,6 +10,15 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/intercars", tags=["intercars"])
 
 
+class ProductResponse(BaseModel):
+    id: str
+    name: str
+    code: str
+    description: str
+    image: str
+    brand: str
+
+
 class InventoryLine(BaseModel):
     sku: str = Field(..., min_length=1, description="Product SKU")
     quantity: int = Field(..., gt=0, description="Quantity must be positive")
@@ -115,6 +124,43 @@ async def inventory_quote(request: InventoryQuoteRequest):
 
 
 @router.get("/search/products")
+async def get_stock_balance(
+    sku: List[str] = Query(..., description="List of SKUs"),
+    location: Optional[List[str]] = Query(None, description="List of locations"),
+    ship_to: Optional[str] = Query(None, description="Ship to location"),
+):
+    if not sku:
+        raise HTTPException(status_code=400, detail="At least one SKU is required")
+
+    async with IntercarsAdapter() as adapter:
+        return await handle_api_errors(
+            adapter.get_stock_balance, skus=sku, locations=location, ship_to=ship_to
+        )
+
+
+@router.get("/search/products", response_model=List[ProductResponse])
+async def search_products(
+    query: Optional[str] = Query(None, description="Search query"),
+    brand: Optional[str] = Query(None, description="Brand filter"),
+    category: Optional[str] = Query(None, description="Category filter"),
+    limit: Optional[int] = Query(50, description="Maximum number of results"),
+    offset: Optional[int] = Query(0, description="Offset for pagination"),
+):
+    """
+    Search for products and return them in standardized format.
+    """
+    async with IntercarsAdapter() as adapter:
+        return await handle_api_errors(
+            adapter.search_products,
+            query=query,
+            brand=brand,
+            category=category,
+            limit=limit,
+            offset=offset,
+        )
+
+
+@router.get("/stock/balance")
 async def get_stock_balance(
     sku: List[str] = Query(..., description="List of SKUs"),
     location: Optional[List[str]] = Query(None, description="List of locations"),

@@ -43,6 +43,51 @@ class BMPartsAdapter:
             response.raise_for_status()
             return response.json()
 
+    def _standardize_product(self, product_data: dict) -> dict:
+        return {
+            "id": str(product_data.get("uuid") or product_data.get("id") or ""),
+            "name": str(product_data.get("name") or product_data.get("title") or ""),
+            "code": str(
+                product_data.get("code")
+                or product_data.get("article")
+                or product_data.get("sku")
+                or ""
+            ),
+            "description": str(
+                product_data.get("description") or product_data.get("desc") or ""
+            ),
+            "image": str(
+                product_data.get("image")
+                or product_data.get("photo")
+                or product_data.get("picture")
+                or ""
+            ),
+            "brand": str(
+                product_data.get("brand") or product_data.get("manufacturer") or ""
+            ),
+            **product_data,
+        }
+
+    def _transform_search_response(self, response_data: dict) -> dict:
+        if not response_data or "products" not in response_data:
+            return response_data
+
+        products = response_data["products"]
+
+        if isinstance(products, dict):
+            standardized_products = {
+                key: self._standardize_product(product)
+                for key, product in products.items()
+            }
+        elif isinstance(products, list):
+            standardized_products = [
+                self._standardize_product(product) for product in products
+            ]
+        else:
+            standardized_products = products
+
+        return {**response_data, "products": standardized_products}
+
     async def get_profile(self):
         url = f"{self.BASE_URL}/profile/me"
         headers = {"Authorization": self.token}
@@ -89,7 +134,8 @@ class BMPartsAdapter:
     async def search_products(self, query: str, **filters):
         endpoint = "/search/products"
         params = {"q": query, **filters}
-        return await self.fetch(endpoint, params)
+        response = await self.fetch(endpoint, params)
+        return self._transform_search_response(response)
 
     async def get_product_details(self, product_uuid: str):
         endpoint = f"/products/{product_uuid}"
@@ -142,7 +188,7 @@ class BMPartsAdapter:
                 ]
 
             for product_id, product_data in products_list:
-                product_uuid = product_data.get("uuid")
+                product_uuid = product_data.get("uuid") or product_data.get("id")
 
                 if product_uuid:
                     try:

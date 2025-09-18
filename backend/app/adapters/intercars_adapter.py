@@ -5,6 +5,8 @@ from typing import Any, Dict, List, Optional
 from urllib.parse import urljoin
 import httpx
 
+from app.api.intercars import ProductResponse
+
 logger = logging.getLogger(__name__)
 
 
@@ -198,6 +200,59 @@ class IntercarsAdapter:
         return await self._make_request(
             "POST", "inventory/quote", json_data={"lines": lines}
         )
+
+    async def search_products(
+        self,
+        query: Optional[str] = None,
+        brand: Optional[str] = None,
+        category: Optional[str] = None,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
+    ) -> List[ProductResponse]:
+        params = {}
+        if query:
+            params["q"] = query
+        if brand:
+            params["brand"] = brand
+        if category:
+            params["category"] = category
+        if limit:
+            params["limit"] = limit
+        if offset:
+            params["offset"] = offset
+
+        try:
+            response_data = await self._make_request(
+                "GET", "products/search", params=params
+            )
+
+            products = []
+            items = (
+                response_data.get("items", [])
+                if isinstance(response_data, dict)
+                else response_data
+            )
+
+            for item in items:
+                product = ProductResponse(
+                    id=str(item.get("id", item.get("productId", ""))),
+                    name=item.get("name", item.get("productName", "")),
+                    code=item.get("code", item.get("sku", item.get("partNumber", ""))),
+                    description=item.get(
+                        "description", item.get("longDescription", "")
+                    ),
+                    image=item.get(
+                        "image", item.get("imageUrl", item.get("picture", ""))
+                    ),
+                    brand=item.get("brand", item.get("manufacturer", "")),
+                )
+                products.append(product)
+
+            return products
+
+        except Exception as e:
+            logger.error(f"Error searching products: {e}")
+            raise IntercarsAPIError(500, f"Failed to search products: {str(e)}")
 
     async def get_stock_balance(
         self,

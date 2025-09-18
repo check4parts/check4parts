@@ -7,6 +7,7 @@ from urllib.parse import urljoin
 
 import httpx
 
+from app.api.asg import ProductResponse, SearchProductsResponse
 from app.config import ASG_TOKEN
 
 logger = logging.getLogger(__name__)
@@ -167,6 +168,18 @@ class ASGAdapter:
                     500, f"Network error after {self.MAX_RETRIES} attempts: {str(e)}"
                 )
 
+    def _transform_product_data(self, raw_product: Dict[str, Any]) -> ProductResponse:
+        return ProductResponse(
+            id=str(raw_product.get("id", "")),
+            name=str(raw_product.get("name", "")),
+            code=str(raw_product.get("code", raw_product.get("article", ""))),
+            description=str(
+                raw_product.get("description", raw_product.get("desc", ""))
+            ),
+            image=str(raw_product.get("image", raw_product.get("photo", ""))),
+            brand=str(raw_product.get("brand", raw_product.get("manufacturer", ""))),
+        )
+
     async def _authenticate(self) -> Dict[str, Any]:
         if not self._login or not self._password:
             raise ASGAPIError(401, "Login credentials are required for authentication")
@@ -298,11 +311,13 @@ class ASGAdapter:
         category_id: Optional[int] = None,
         page: int = 1,
         per_page: int = 20,
-    ) -> Dict[str, Any]:
+    ) -> SearchProductsResponse:
         if not query or not query.strip():
             raise ASGAPIError(400, "Search query cannot be empty")
+
         if page < 1:
             raise ASGAPIError(400, "Page number must be at least 1")
+
         if per_page < 1 or per_page > 100:
             raise ASGAPIError(400, "Per page must be between 1 and 100")
 
@@ -318,9 +333,57 @@ class ASGAdapter:
         params = {"page": page, "per_page": per_page}
         json_data = {"filter": filters}
 
-        return await self._make_request(
+        raw_response = await self._make_request(
             "POST", "/prices", params=params, json_data=json_data
         )
+
+        try:
+            raw_products = []
+            if "data" in raw_response:
+                if isinstance(raw_response["data"], list):
+                    raw_products = raw_response["data"]
+                elif (
+                    isinstance(raw_response["data"], dict)
+                    and "items" in raw_response["data"]
+                ):
+                    raw_products = raw_response["data"]["items"]
+                elif (
+                    isinstance(raw_response["data"], dict)
+                    and "products" in raw_response["data"]
+                ):
+                    raw_products = raw_response["data"]["products"]
+            elif "items" in raw_response:
+                raw_products = raw_response["items"]
+            elif "products" in raw_response:
+                raw_products = raw_response["products"]
+            elif isinstance(raw_response, list):
+                raw_products = raw_response
+
+            products = [
+                self._transform_product_data(product)
+                for product in raw_products
+                if isinstance(product, dict)
+            ]
+
+            total = raw_response.get("total", len(products))
+            if "data" in raw_response and isinstance(raw_response["data"], dict):
+                total = raw_response["data"].get("total", total)
+
+            total_pages = (total + per_page - 1) // per_page if total > 0 else 1
+
+            return SearchProductsResponse(
+                products=products,
+                total=total,
+                page=page,
+                per_page=per_page,
+                total_pages=total_pages,
+            )
+
+        except Exception as e:
+            logger.error(f"Error transforming product data: {e}")
+            return SearchProductsResponse(
+                products=[], total=0, page=page, per_page=per_page, total_pages=0
+            )
 
     async def get_product_details(self, product_id: Union[int, str]) -> Dict[str, Any]:
         if not product_id:

@@ -301,6 +301,22 @@ class FiltersRequest(BaseModel):
     filters: Optional[Dict[str, Any]] = Field(None, description="Optional filters")
 
 
+class ProductSearchItem(BaseModel):
+    id: str
+    name: str
+    code: str
+    description: str
+    image: str
+    brand: str
+
+
+class ProductSearchResponse(BaseModel):
+    items: List[ProductSearchItem]
+    total_count: int
+    from_index: int
+    count: int
+
+
 async def handle_api_errors(func, *args, **kwargs):
     try:
         return await func(*args, **kwargs)
@@ -901,7 +917,7 @@ async def get_receivables_data(request: ReceivablesRequest) -> Dict[str, Any]:
 
 # Search endpoints
 @router.post("/search/products")
-async def search_products(request: SearchRequest) -> Dict[str, Any]:
+async def search_products(request: SearchRequest) -> ProductSearchResponse:
     async with OmegaAdapter() as adapter:
         return await handle_api_errors(
             adapter.search_products,

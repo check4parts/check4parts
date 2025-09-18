@@ -91,6 +91,15 @@ class AddToCartRequest(BaseModel):
     language: str = Field("ua", description="Response language (ua/ru)")
 
 
+class ProductResult(BaseModel):
+    id: str
+    name: str
+    code: str
+    description: str
+    image: str
+    brand: str
+
+
 async def handle_api_errors(func, *args, **kwargs):
     """Helper function to handle API errors consistently"""
     try:
@@ -143,15 +152,6 @@ async def search_by_oem(
 
 @router.post("/search/products")
 async def search_parts(request: SearchRequest):
-    """
-    Search for auto parts with flexible parameters
-
-    Body:
-        oem: Part article/OEM number (required)
-        brand: Brand name or external code (optional)
-        include_info: Include additional information like images
-        language: Response language ('ua' or 'ru')
-    """
     async with UniqTradeAdapter() as adapter:
         if request.brand:
             return await handle_api_errors(
