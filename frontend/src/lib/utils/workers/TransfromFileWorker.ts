@@ -20,7 +20,6 @@ async function transformFileData(
 		}
 	});
 
-	// Yield control to the event loop to prevent blocking the worker thread for large files.
 	await new Promise((resolve) => setTimeout(resolve, 0));
 
 	for (const row of fileData) {
@@ -59,7 +58,6 @@ async function calculateHashForTransformedData(
 	transformedData: TransformedItem[],
 	companyId: string
 ): Promise<string> {
-	// Ensure CryptoJS is loaded and available.
 	const CryptoJS = (await import('crypto-js')).default;
 	if (transformedData.length > 500000) {
 		console.warn('Transformed data is too large for hash calculation');
@@ -88,17 +86,13 @@ self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
 				companyId
 			});
 
-			// Notify main thread about transformation progress
 			postMessageToMain({ type: 'progress', payload: { state: 'transforming' } });
 			const transformedData = await transformFileData(fileData, mappedHeaders, providerId);
 
-			// Notify main thread about hash calculation progress
 			postMessageToMain({ type: 'progress', payload: { state: 'hash' } });
 			const hash = await calculateHashForTransformedData(transformedData, companyId);
-			// Notify main thread about completion
 			postMessageToMain({ type: 'complete', payload: { transformedData, hash } });
 		} catch (error: any) {
-			// Notify main thread about any errors
 			postMessageToMain({
 				type: 'error',
 				payload: { message: error.message || 'An unknown error occurred during processing.' }

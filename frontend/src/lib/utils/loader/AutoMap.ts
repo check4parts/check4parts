@@ -48,36 +48,45 @@ export type Template = {
 	template: TemplateRow[];
 	metadata: {
 		firstRowHeaders: boolean;
+		providerId?: string;
 	};
 };
 
 export function autoMapHeaders(
-	headers: string[],
-	provider_warehouses: { id: string; name: string }[]
+  headers: string[],
+  provider_warehouses: { id: string; name: string }[],
+  savedTemplate?: TemplateRow[]
 ): TemplateRow[] {
-	const normalize = (str: string) => str.toLowerCase().replace(/\s+/g, '');
+	console.log('AutoMap Headers', savedTemplate);
+  const normalize = (str: string) => str.toLowerCase().replace(/\s+/g, '');
 
-	const matchImportant = (target: string, aliases: string[] = []) => {
-		const candidates = [target, ...aliases].map(normalize);
-		const idx = headers.findIndex((h) => candidates.includes(normalize(h)));
-		return idx !== -1 ? idx.toString() : '';
-	};
+  const matchImportant = (target: string, aliases: string[] = []) => {
+    const candidates = [target, ...aliases].map(normalize);
+    const idx = headers.findIndex((h) => candidates.includes(normalize(h)));
+    return idx !== -1 ? idx.toString() : '';
+  };
 
-	const match = (target: string) => {
-		const idx = headers.findIndex((h) => normalize(h).includes(normalize(target)));
-		return idx !== -1 ? idx.toString() : '';
-	};
+  const match = (target: string) => {
+    const idx = headers.findIndex((h) => normalize(h).includes(normalize(target)));
+    return idx !== -1 ? idx.toString() : '';
+  };
 
-	return [
-		...IMPORTANT_HEADERS.map((h) => ({
-			...h,
-			header: matchImportant(h.name, h.aliases)
-		})),
-		...provider_warehouses.map((wh) => ({
-			name: wh.name,
-			value: wh.id,
-			type: 'rests' as const,
-			header: match(wh.name)
-		}))
-	];
+  const findSavedHeader = (value: string): string | undefined => {
+		console.log('Saved Template:', savedTemplate);
+    return savedTemplate?.find((item) => item.value === value)?.header;
+  };
+
+  const props = IMPORTANT_HEADERS.map((h) => ({
+    ...h,
+    header: findSavedHeader(h.value) ?? matchImportant(h.name, h.aliases)
+  }));
+
+  const rests = provider_warehouses.map((wh) => ({
+    name: wh.name,
+    value: wh.id,
+    type: 'rests' as const,
+    header: findSavedHeader(wh.id) ?? match(wh.name)
+  }));
+
+  return [...props, ...rests];
 }

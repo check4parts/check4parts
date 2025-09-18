@@ -2,6 +2,8 @@
 	import { Switch } from '@skeletonlabs/skeleton-svelte';
 	import { Dialog } from 'bits-ui';
 	import type { Template } from '$lib/utils/loader/AutoMap';
+	import type { SupabaseClient } from '@supabase/supabase-js';
+	import toast from 'svelte-french-toast';
 
 	interface Props {
 		openState: boolean;
@@ -12,24 +14,23 @@
 			headersLabels: string[];
 		};
 		template: Template;
+		supabase: SupabaseClient;
 	}
 
 	let {
 		openState = $bindable(false),
 		modalClose = () => (openState = false),
 		data,
-		template = $bindable<Template>()
+		template = $bindable<Template>(),
+		supabase
 	}: Props = $props();
 
-	// допоміжна функція для вибору
-	function handleTemplateChange(index: number, selectedValue: string) {
-		// шукаємо чи вже є таке поле
-		const row = template.template.find((r) => r.value === selectedValue);
+	let loadingSaveTemplate = $state(false);
 
-		// колонка з файлу
+	function handleTemplateChange(index: number, selectedValue: string) {
+		const row = template.template.find((r) => r.value === selectedValue);
 		const fileHeader = data.fileHeaders[index];
 
-		// якщо обрали ignore → відв'язуємо
 		if (selectedValue === 'ignore') {
 			const current = template.template.find((r) => r.header === fileHeader);
 			if (current) current.header = '';
@@ -37,14 +38,27 @@
 		}
 
 		if (row) {
-			// перед тим знімаємо цей хедер з усіх інших
 			template.template.forEach((r) => {
 				if (r.header === fileHeader) r.header = '';
 			});
 
-			// тепер призначаємо
 			row.header = fileHeader;
 		}
+	}
+
+	async function saveTemplate() {
+		loadingSaveTemplate = true;
+		const { error } = await supabase.from('provider_template').upsert({
+			provider_id: template.metadata.providerId,
+			template: template.template.map((r) => ({ header: r.header, value: r.value })),
+		});
+		if (error) {
+			console.error('Error saving template:', error);
+			toast.error('Помилка при збереженні шаблону. Спробуйте ще раз.');
+		} else {
+			toast.success('Шаблон успішно збережено!');
+		}
+		loadingSaveTemplate = false;
 	}
 </script>
 
@@ -52,7 +66,7 @@
 	<Dialog.Portal>
 		<Dialog.Overlay class="fixed inset-0 z-50 bg-black/80" />
 		<Dialog.Content
-			class="fixed top-1/2 left-1/2 z-50 w-1/2 -translate-x-1/2 -translate-y-1/2 rounded-xl bg-white p-4"
+			class="fixed left-1/2 top-1/2 z-50 w-1/2 -translate-x-1/2 -translate-y-1/2 rounded-xl bg-white p-4"
 		>
 			<div class="flex justify-end">
 				<button type="button" onclick={modalClose}>
@@ -81,7 +95,7 @@
 								{@const current = template.template.find((r) => r.header === fileHeader)}
 
 								<tr class="grid grid-cols-[2fr_3fr_1fr] items-center align-baseline">
-									<td class="w-fit max-w-2/3 py-2 text-lg font-semibold">{label}:</td>
+									<td class="max-w-2/3 w-fit py-2 text-lg font-semibold">{label}:</td>
 									<td class="py-2 pr-2">
 										<select
 											class="w-full rounded border p-1"
@@ -110,8 +124,22 @@
 				</div>
 
 				<div class="mt-4 flex justify-end gap-4">
-					<button type="button" class="btn preset-filled-primary-950-50" onclick={modalClose}
-						>Готово</button
+					<button
+						type="button"
+						class="btn preset-filled-primary-100-900 flex items-center justify-center font-bold"
+						onclick={saveTemplate}
+						disabled={loadingSaveTemplate}
+					>
+						{#if loadingSaveTemplate}
+							Збереження...
+						{:else}
+							Зберегти шаблон
+						{/if}
+					</button>
+					<button
+						type="button"
+						class="btn preset-filled-primary-950-50 font-bold"
+						onclick={modalClose}>Готово</button
 					>
 				</div>
 			</Dialog.Description>

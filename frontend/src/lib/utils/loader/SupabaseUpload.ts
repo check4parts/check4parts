@@ -19,6 +19,7 @@ export type WorkerMessage =
 				authToken: string;
 				hash: string;
 				loadedId?: string | null;
+				currency: string;
 				companyId: string;
 				supabaseAnonKey: string;
 				supabaseUrl: string;
@@ -63,6 +64,7 @@ let currentReject: ((reason?: any) => void) | undefined;
 export async function startWorkerUpload(
 	data: TransformedItem[],
 	hash: string,
+	currency: string,
 	loadedId: string | null,
 	providerId: string,
 	authToken: string,
@@ -76,8 +78,8 @@ export async function startWorkerUpload(
 	}) => void,
 	settings: AppSettings = {
 		startFrom: 0,
-		chunkSize: 6000,
-		concurrencyLimit: 5
+		chunkSize: 5000,
+		concurrencyLimit: 4
 	}
 ): Promise<void> {
 	return new Promise((resolve, reject) => {
@@ -156,7 +158,8 @@ export async function startWorkerUpload(
 				supabaseAnonKey,
 				hash,
 				loadedId,
-				companyId
+				companyId,
+				currency
 			}
 		});
 	});
