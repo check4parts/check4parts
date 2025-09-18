@@ -66,7 +66,7 @@
 			</button>
 		</div>
 	</menu>
-	<section class="overflow-y-auto rounded-3xl border-[1.5rem] border-white bg-white">
+	<section class="overflow-y-auto rounded-3xl border-[1.5rem] border-white bg-white h-full">
 		{@render children()}
 	</section>
 </main>
