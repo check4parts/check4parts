@@ -1,5 +1,6 @@
+import io
 import logging
-from typing import Optional, List, Dict, Any, io
+from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Query, HTTPException
 from pydantic import BaseModel, Field
 from starlette.responses import StreamingResponse
@@ -50,7 +51,7 @@ class OrderRequest(BaseModel):
     deliveryPoint: int = Field(..., description="Delivery point ID")
     items: List[OrderItem] = Field(..., min_items=1, description="List of order items")
     paymentType: str = Field(
-        ..., regex="^(nal|beznal)$", description="Payment type: nal or beznal"
+        ..., pattern="^(nal|beznal)$", description="Payment type: nal or beznal"
     )
     withoutDocument: bool = Field(False, description="Order without document")
 
@@ -117,7 +118,7 @@ async def handle_api_errors(func, *args, **kwargs):
         }
 
 
-@router.get("/search/products{oem}")
+@router.get("/search/products/{oem}")
 async def search_by_oem(
     oem: str,
     info: Optional[int] = Query(
@@ -169,7 +170,7 @@ async def search_parts(request: SearchRequest):
             )
 
 
-@router.get("/search/products{oem}/brand/{brand}")
+@router.get("/search/products/{oem}/brand/{brand}")
 async def search_by_oem_and_brand(
     oem: str,
     brand: str,

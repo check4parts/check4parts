@@ -110,7 +110,7 @@ async def authorize(request: AuthRequest):
 @router.post("/inventory/quote")
 async def inventory_quote(request: InventoryQuoteRequest):
     async with IntercarsAdapter() as adapter:
-        lines_data = [line.dict() for line in request.lines]
+        lines_data = [line.model_dump(by_alias=True) for line in request.lines]
         return await handle_api_errors(adapter.inventory_quote, lines_data)
 
 
@@ -246,5 +246,5 @@ async def get_customer_finances():
 @router.post("/pricing/quote")
 async def calculate_item_price(request: CalculateItemPriceRequest):
     async with IntercarsAdapter() as adapter:
-        lines_data = [line.dict() for line in request.lines]
+        lines_data = [line.model_dump(by_alias=True) for line in request.lines]
         return await handle_api_errors(adapter.calculate_item_price, lines_data)

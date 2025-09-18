@@ -1,8 +1,8 @@
 import logging
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Annotated
 
 from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.adapters.omega_adapter import OmegaAdapter, OmegaAPIError
 
@@ -17,7 +17,21 @@ class BasketProductItem(BaseModel):
 
 class AddProductRequest(BaseModel):
     product_id: int = Field(..., description="Product ID")
-    count: int = Field(..., description="Product count (can be negative to reduce)")
+    count: Annotated[
+        int,
+        Field(
+            ...,
+            ne=0,
+            description="Product count (non-zero, can be negative to reduce)",
+        ),
+    ]
+
+    @field_validator("count")
+    @classmethod
+    def ensure_non_zero(cls, value: int) -> int:
+        if value == 0:
+            raise ValueError("Product count must be non-zero")
+        return value
 
 
 class AddProductListRequest(BaseModel):

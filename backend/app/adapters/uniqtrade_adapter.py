@@ -207,7 +207,8 @@ class UniqTradeAdapter:
         params: Optional[Dict[str, Any]] = None,
         json_data: Optional[Dict[str, Any]] = None,
         language: str = "ua",
-    ) -> Dict[str, Any]:
+        return_raw: bool = False,
+    ) -> Any:
         """Make authenticated request with automatic token refresh"""
         await self._ensure_authenticated()
 
@@ -218,10 +219,15 @@ class UniqTradeAdapter:
 
         for attempt in range(self.MAX_RETRIES):
             try:
-                if method.upper() == "GET":
+                method_upper = method.upper()
+                if method_upper == "GET":
                     response = await client.get(url, params=params, headers=headers)
-                elif method.upper() == "POST":
+                elif method_upper == "POST":
                     response = await client.post(
+                        url, params=params, json=json_data, headers=headers
+                    )
+                elif method_upper == "DELETE":
+                    response = await client.delete(
                         url, params=params, json=json_data, headers=headers
                     )
                 else:
@@ -238,16 +244,27 @@ class UniqTradeAdapter:
                         logger.info("Token expired during request, refreshing...")
                         await self._refresh_auth_token()
                         headers["Authorization"] = f"Bearer {self._token}"
-                        if method.upper() == "GET":
+                        if method_upper == "GET":
                             response = await client.get(
                                 url, params=params, headers=headers
                             )
-                        else:
+                        elif method_upper == "POST":
                             response = await client.post(
                                 url, params=params, json=json_data, headers=headers
                             )
+                        elif method_upper == "DELETE":
+                            response = await client.delete(
+                                url, params=params, json=json_data, headers=headers
+                            )
+                        else:
+                            raise UniqTradeAPIError(
+                                400, f"Unsupported HTTP method: {method}"
+                            )
 
                 await self._handle_response_errors(response)
+
+                if return_raw:
+                    return response
 
                 try:
                     return response.json()
@@ -267,6 +284,11 @@ class UniqTradeAdapter:
                 raise UniqTradeAPIError(
                     500, f"Network error after {self.MAX_RETRIES} attempts: {str(e)}"
                 )
+
+    def _validate_positive_int(self, value: int, field_name: str) -> int:
+        if not isinstance(value, int) or value <= 0:
+            raise UniqTradeAPIError(400, f"{field_name} must be a positive integer")
+        return value
 
     def _validate_non_empty_string(self, value: str, field_name: str) -> str:
         if not value or not value.strip():
@@ -586,4 +608,177 @@ class UniqTradeAdapter:
 
         return await self._make_authenticated_request(
             "GET", endpoint, params=params, language=language
+        )
+
+    async def get_order_details(
+        self, order_id: int, language: str = "ua"
+    ) -> Dict[str, Any]:
+        order_id = self._validate_positive_int(order_id, "Order ID")
+        endpoint = f"/api/order/{order_id}"
+        return await self._make_authenticated_request(
+            "GET", endpoint, language=language
+        )
+
+    async def get_pricelist_export_params(
+        self, language: str = "ua"
+    ) -> Dict[str, Any]:
+        endpoint = "/api/pricelist/params"
+        return await self._make_authenticated_request(
+            "GET", endpoint, language=language
+        )
+
+    async def request_pricelist_export(
+        self,
+        export_format: str,
+        visible_brands_id: Optional[List[int]] = None,
+        categories_id: Optional[List[int]] = None,
+        models_id: Optional[List[str]] = None,
+        in_stock: bool = True,
+        show_scancode: bool = False,
+        utr_article: bool = False,
+        language: str = "ua",
+    ) -> Dict[str, Any]:
+        export_format = self._validate_non_empty_string(export_format, "Format").lower()
+        allowed_formats = {"xlsx", "txt", "csv"}
+        if export_format not in allowed_formats:
+            raise UniqTradeAPIError(
+                400,
+                "Invalid export format. Allowed values: xlsx, txt, csv",
+            )
+
+        for name, value in {
+            "visible_brands_id": visible_brands_id,
+            "categories_id": categories_id,
+        }.items():
+            if value is not None:
+                if not isinstance(value, list) or not all(
+                    isinstance(item, int) for item in value
+                ):
+                    raise UniqTradeAPIError(
+                        400, f"{name} must be a list of integers"
+                    )
+
+        if models_id is not None:
+            if not isinstance(models_id, list) or not all(
+                isinstance(item, str) and item.strip() for item in models_id
+            ):
+                raise UniqTradeAPIError(
+                    400, "models_id must be a list of non-empty strings"
+                )
+
+        if not isinstance(in_stock, bool):
+            raise UniqTradeAPIError(400, "in_stock must be a boolean value")
+        if not isinstance(show_scancode, bool):
+            raise UniqTradeAPIError(400, "show_scancode must be a boolean value")
+        if not isinstance(utr_article, bool):
+            raise UniqTradeAPIError(400, "utr_article must be a boolean value")
+
+        json_data: Dict[str, Any] = {
+            "format": export_format,
+            "in_stock": in_stock,
+            "show_scancode": show_scancode,
+            "utr_article": utr_article,
+        }
+
+        if visible_brands_id:
+            json_data["visible_brands_id"] = visible_brands_id
+        if categories_id:
+            json_data["categories_id"] = categories_id
+        if models_id:
+            json_data["models_id"] = [model.strip() for model in models_id]
+
+        endpoint = "/api/pricelist/export"
+        return await self._make_authenticated_request(
+            "POST", endpoint, json_data=json_data, language=language
+        )
+
+    async def get_pricelist_status(
+        self, pricelist_id: int, language: str = "ua"
+    ) -> Dict[str, Any]:
+        pricelist_id = self._validate_positive_int(pricelist_id, "Pricelist ID")
+        endpoint = f"/api/pricelist/status/{pricelist_id}"
+        return await self._make_authenticated_request(
+            "GET", endpoint, language=language
+        )
+
+    async def get_pricelists(self, language: str = "ua") -> Dict[str, Any]:
+        endpoint = "/api/pricelist"
+        return await self._make_authenticated_request(
+            "GET", endpoint, language=language
+        )
+
+    async def download_pricelist(
+        self, token: str, language: str = "ua"
+    ) -> httpx.Response:
+        token = self._validate_non_empty_string(token, "Pricelist token")
+        endpoint = f"/api/pricelist/download/{token}"
+        return await self._make_authenticated_request(
+            "GET", endpoint, language=language, return_raw=True
+        )
+
+    async def delete_pricelist(
+        self, pricelist_id: int, language: str = "ua"
+    ) -> Dict[str, Any]:
+        pricelist_id = self._validate_positive_int(pricelist_id, "Pricelist ID")
+        endpoint = f"/api/pricelist/{pricelist_id}"
+        return await self._make_authenticated_request(
+            "DELETE", endpoint, language=language
+        )
+
+    async def add_to_cart(
+        self, detail_id: int, quantity: int, language: str = "ua"
+    ) -> Dict[str, Any]:
+        detail_id = self._validate_positive_int(detail_id, "Detail ID")
+        quantity = self._validate_positive_int(quantity, "Quantity")
+
+        json_data = {"detail_id": detail_id, "quantity": quantity}
+        endpoint = "/api/cart/add"
+        return await self._make_authenticated_request(
+            "POST", endpoint, json_data=json_data, language=language
+        )
+
+    async def get_brands(self, language: str = "ua") -> Dict[str, Any]:
+        endpoint = "/api/brands"
+        return await self._make_authenticated_request(
+            "GET", endpoint, language=language
+        )
+
+    async def get_storages(
+        self,
+        all_storages: bool = False,
+        point_id: Optional[int] = None,
+        language: str = "ua",
+    ) -> Dict[str, Any]:
+        if point_id is not None and not isinstance(point_id, int):
+            raise UniqTradeAPIError(400, "point_id must be an integer if provided")
+
+        params: Dict[str, Any] = {}
+        if all_storages:
+            params["all"] = 1
+        if point_id is not None:
+            params["point_id"] = point_id
+
+        endpoint = "/api/storages"
+        return await self._make_authenticated_request(
+            "GET", endpoint, params=params, language=language
+        )
+
+    async def get_accounting_numbers_by_order(
+        self, order_code: str, language: str = "ua"
+    ) -> Dict[str, Any]:
+        order_code = self._validate_non_empty_string(order_code, "Order code")
+        endpoint = f"/api/accounting/order/{order_code}"
+        return await self._make_authenticated_request(
+            "GET", endpoint, language=language
+        )
+
+    async def get_order_by_accounting_number(
+        self, accounting_number: str, language: str = "ua"
+    ) -> Dict[str, Any]:
+        accounting_number = self._validate_non_empty_string(
+            accounting_number, "Accounting number"
+        )
+        endpoint = f"/api/accounting/{accounting_number}"
+        return await self._make_authenticated_request(
+            "GET", endpoint, language=language
         )
