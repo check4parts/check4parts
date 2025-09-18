@@ -2,7 +2,7 @@ import logging
 from typing import List, Optional, Union
 
 from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, model_validator
 
 from app.adapters.asg_adapter import ASGAdapter, ASGAPIError
 
@@ -23,6 +23,12 @@ class ProductItem(BaseModel):
 
     class Config:
         validate_assignment = True
+
+    @model_validator(mode="after")
+    def validate_id_or_sku(cls, product: "ProductItem") -> "ProductItem":
+        if product.id is None and not (product.sku and product.sku.strip()):
+            raise ValueError("Either 'id' or 'sku' must be provided for a product item.")
+        return product
 
 
 class CreateOrderRequest(BaseModel):
