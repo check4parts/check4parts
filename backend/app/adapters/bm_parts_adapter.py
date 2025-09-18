@@ -398,9 +398,9 @@ class BMPartsAdapter:
         endpoint = "/returns/products"
         return await self.fetch(endpoint)
 
-    async def create_return_request(self, params: dict):
+    async def create_return_request(self, data: dict):
         endpoint = "/returns/request"
-        return await self.fetch(endpoint, params=params, method="POST")
+        return await self.fetch(endpoint, data=data, method="POST")
 
     async def get_return_causes(self):
         endpoint = "/returns/causes"
@@ -408,4 +408,5 @@ class BMPartsAdapter:
 
     async def notify_return(self, text: str):
         endpoint = "/returns/notify"
-        return await self.fetch(endpoint, params={"text": text}, method="POST")
+        payload = {"text": text}
+        return await self.fetch(endpoint, data=payload, method="POST")
