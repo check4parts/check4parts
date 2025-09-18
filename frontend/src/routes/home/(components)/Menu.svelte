@@ -58,13 +58,5 @@
 				{ page: 'suppliers', title: 'Постачальники' }
 			])}
 		</li>
-		<li>
-			{@render menuItem('prices', 'Прайси', '/cubes-icon.svg', '/cubes-icon-selected.svg')}
-			{@render subMenu('prices', undefined, [
-				{ page: '', title: 'Історія' },
-				{ page: 'loader', title: 'Завантажити прайси' },
-				{ page: 'search', title: 'Пошук' }
-			])}
-		</li>
 	</ul>
 </div>

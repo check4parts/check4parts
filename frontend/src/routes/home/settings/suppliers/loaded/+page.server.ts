@@ -19,6 +19,7 @@ export const load: PageServerLoad = async ({ locals: { supabasePrices, supabase 
 		supabasePrices
 			.from('price_history')
 			.select('*,providers(*),loaded_prices(hash)')
+			.not('loaded_id', 'is', null)
 			.order('status', { ascending: true })
 			.order('created_at', { ascending: false })
 			.then(({ data, error }) => {
