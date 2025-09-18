@@ -1,5 +1,6 @@
+import io
 import logging
-from typing import Optional, List, Dict, Any, io
+from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Query, HTTPException
 from pydantic import BaseModel, Field
 from starlette.responses import StreamingResponse
