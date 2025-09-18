@@ -51,7 +51,7 @@ class OrderRequest(BaseModel):
     deliveryPoint: int = Field(..., description="Delivery point ID")
     items: List[OrderItem] = Field(..., min_items=1, description="List of order items")
     paymentType: str = Field(
-        ..., regex="^(nal|beznal)$", description="Payment type: nal or beznal"
+        ..., pattern="^(nal|beznal)$", description="Payment type: nal or beznal"
     )
     withoutDocument: bool = Field(False, description="Order without document")
 
