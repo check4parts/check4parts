@@ -91,31 +91,40 @@ class AddToCartRequest(BaseModel):
     language: str = Field("ua", description="Response language (ua/ru)")
 
 
+def _format_error_detail(
+    status_code: int, message: str, details: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
+    return {
+        "success": False,
+        "error": {
+            "code": status_code,
+            "message": message,
+            "details": details or {},
+        },
+    }
+
+
 async def handle_api_errors(func, *args, **kwargs):
-    """Helper function to handle API errors consistently"""
+    """Execute adapter call and surface failures through HTTP exceptions."""
+
     try:
-        result = await func(*args, **kwargs)
-        return {"success": True, "data": result}
+        return await func(*args, **kwargs)
     except UniqTradeAPIError as e:
         logger.error(f"UniqTrade API error: {e}")
-        return {
-            "success": False,
-            "error": {
-                "code": e.status_code,
-                "message": e.message,
-                "details": e.details,
-            },
-        }
+        raise HTTPException(
+            status_code=e.status_code,
+            detail=_format_error_detail(e.status_code, e.message, e.details),
+        ) from e
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Unexpected error: {e}")
-        return {
-            "success": False,
-            "error": {
-                "code": 500,
-                "message": "Internal server error",
-                "details": {"exception": str(e)},
-            },
-        }
+        logger.exception("Unexpected error during UniqTrade API call")
+        raise HTTPException(
+            status_code=500,
+            detail=_format_error_detail(
+                500, "Internal server error", {"exception": str(e)}
+            ),
+        ) from e
 
 
 @router.get("/search/products/{oem}")
@@ -525,9 +534,18 @@ async def download_pricelist(
             )
 
         except UniqTradeAPIError as e:
-            raise HTTPException(status_code=e.status_code, detail=e.message)
+            detail = _format_error_detail(e.status_code, e.message, e.details)
+            raise HTTPException(status_code=e.status_code, detail=detail) from e
+        except HTTPException:
+            raise
         except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e))
+            logger.exception("Failed to download pricelist")
+            raise HTTPException(
+                status_code=500,
+                detail=_format_error_detail(
+                    500, "Internal server error", {"exception": str(e)}
+                ),
+            ) from e
 
 
 @router.delete("/pricelists/{pricelist_id}")

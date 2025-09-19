@@ -316,15 +316,38 @@ class FiltersRequest(BaseModel):
     filters: Optional[Dict[str, Any]] = Field(None, description="Optional filters")
 
 
+def _format_error_detail(
+    status_code: int, message: str, details: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
+    return {
+        "success": False,
+        "error": {
+            "code": status_code,
+            "message": message,
+            "details": details or {},
+        },
+    }
+
+
 async def handle_api_errors(func, *args, **kwargs):
     try:
         return await func(*args, **kwargs)
     except OmegaAPIError as e:
         logger.error(f"Omega API error: {e}")
-        raise HTTPException(status_code=e.status_code, detail=e.message)
+        raise HTTPException(
+            status_code=e.status_code,
+            detail=_format_error_detail(e.status_code, e.message, e.details),
+        ) from e
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Unexpected error in Omega adapter: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        logger.exception("Unexpected error in Omega adapter")
+        raise HTTPException(
+            status_code=500,
+            detail=_format_error_detail(
+                500, "Internal server error", {"exception": str(e)}
+            ),
+        ) from e
 
 
 @router.post("/profile/account")

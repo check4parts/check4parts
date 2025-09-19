@@ -1,5 +1,5 @@
 import logging
-from typing import List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, model_validator
@@ -60,15 +60,38 @@ class SearchProductsRequest(BaseModel):
     per_page: int = Field(20, ge=1, le=100, description="Items per page")
 
 
+def _format_error_detail(
+    status_code: int, message: str, details: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
+    return {
+        "success": False,
+        "error": {
+            "code": status_code,
+            "message": message,
+            "details": details or {},
+        },
+    }
+
+
 async def handle_api_errors(func, *args, **kwargs):
     try:
         return await func(*args, **kwargs)
     except ASGAPIError as e:
         logger.error(f"ASG API error: {e}")
-        raise HTTPException(status_code=e.status_code, detail=e.message)
+        raise HTTPException(
+            status_code=e.status_code,
+            detail=_format_error_detail(e.status_code, e.message, e.details),
+        ) from e
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Unexpected error in ASG adapter: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        logger.exception("Unexpected error in ASG adapter")
+        raise HTTPException(
+            status_code=500,
+            detail=_format_error_detail(
+                500, "Internal server error", {"exception": str(e)}
+            ),
+        ) from e
 
 
 @router.post("/login")

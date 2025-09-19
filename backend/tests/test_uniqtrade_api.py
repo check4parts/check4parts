@@ -34,6 +34,21 @@ class DummyAdapter:
     async def __aexit__(self, exc_type, exc, tb):
         return False
 
+    async def search_by_oem(self, oem, include_info, language):
+        return {
+            "oem": oem,
+            "include_info": include_info,
+            "language": language,
+        }
+
+    async def search_by_oem_and_brand(self, oem, brand, include_info, language):
+        return {
+            "oem": oem,
+            "brand": brand,
+            "include_info": include_info,
+            "language": language,
+        }
+
     async def get_order_details(self, order_id, language):
         return {"id": order_id, "language": language}
 
@@ -76,13 +91,42 @@ def _mock_adapter(monkeypatch):
     monkeypatch.setattr("app.api.uniqtrade.UniqTradeAdapter", DummyAdapter)
 
 
+def test_search_by_oem_endpoint():
+    response = client.get(
+        "/uniqtrade/search/products/ABC123",
+        params={"info": 1, "language": "ru"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "oem": "ABC123",
+        "include_info": True,
+        "language": "ru",
+    }
+
+
+def test_search_by_oem_and_brand_endpoint():
+    response = client.get(
+        "/uniqtrade/search/products/ABC123/brand/ACME",
+        params={"info": 0},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "oem": "ABC123",
+        "brand": "ACME",
+        "include_info": False,
+        "language": "ua",
+    }
+
+
 def test_get_order_details_endpoint():
     response = client.get("/uniqtrade/orders/1")
     payload = response.json()
 
     assert response.status_code == 200
-    assert payload["success"] is True
-    assert payload["data"]["id"] == 1
+    assert payload["id"] == 1
+    assert payload["language"] == "ua"
 
 
 def test_pricelist_endpoints_flow():
@@ -103,12 +147,12 @@ def test_pricelist_endpoints_flow():
     download_response = client.get("/uniqtrade/pricelists/download/token")
 
     assert params_response.status_code == 200
-    assert params_response.json()["success"] is True
+    assert params_response.json() == {"language": "ua"}
     assert export_response.status_code == 200
-    assert export_response.json()["success"] is True
-    assert status_response.json()["success"] is True
-    assert list_response.json()["success"] is True
-    assert delete_response.json()["success"] is True
+    assert export_response.json()["requested"] is True
+    assert status_response.json()["status"] == "done"
+    assert list_response.json()["items"] == []
+    assert delete_response.json()["deleted"] == 5
     assert download_response.status_code == 200
     assert download_response.content == b"test"
 
@@ -128,8 +172,8 @@ def test_miscellaneous_endpoints():
         "/uniqtrade/accounting/by-number/ACC1"
     )
 
-    assert add_response.json()["success"] is True
-    assert brands_response.json()["success"] is True
-    assert storages_response.json()["success"] is True
-    assert accounting_order_response.json()["success"] is True
-    assert accounting_number_response.json()["success"] is True
+    assert add_response.json() == {"detail_id": 10, "quantity": 2}
+    assert brands_response.json() == {"brands": []}
+    assert storages_response.json()["all"] is True
+    assert accounting_order_response.json()["order_code"] == "ORDER1"
+    assert accounting_number_response.json()["accounting_number"] == "ACC1"
