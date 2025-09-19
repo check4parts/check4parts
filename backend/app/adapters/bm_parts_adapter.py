@@ -24,6 +24,8 @@ class BMPartsAdapterError(HTTPException):
 
 
 class BMPartsAdapter:
+    """Asynchronous client for interacting with the BM Parts REST API."""
+
     BASE_URL = "https://api.bm.parts"
     REQUEST_TIMEOUT = 30.0
     MAX_RETRIES = 3
@@ -63,6 +65,22 @@ class BMPartsAdapter:
     async def fetch(
         self, endpoint: str, params: dict | None = None, method: str = "GET", data: dict | None = None
     ) -> Any:
+        """Issue an HTTP request against the BM Parts API.
+
+        Args:
+            endpoint: Relative API path (e.g. ``"/profile/me"``).
+            params: Optional query parameters to append to the request.
+            method: HTTP verb used for the request.
+            data: Optional JSON payload for POST/PUT/DELETE requests.
+
+        Returns:
+            The decoded JSON response returned by the upstream service.
+
+        Raises:
+            BMPartsAdapterError: If the request fails or the response body
+                cannot be decoded as JSON.
+        """
+
         client = await self._get_client()
         url = f"{self.BASE_URL}{endpoint}"
 

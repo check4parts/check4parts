@@ -1,4 +1,4 @@
-"""FastAPI dependencies related to the ASG integration."""
+"""FastAPI dependency helpers for the ASG provider."""
 
 from __future__ import annotations
 
@@ -10,6 +10,8 @@ from app.adapters.asg_adapter import ASGAdapter
 
 
 def _normalise_value(value: Optional[Any]) -> Optional[str]:
+    """Return a trimmed string or ``None`` for falsy inputs."""
+
     if isinstance(value, str):
         trimmed = value.strip()
         return trimmed or None
@@ -17,6 +19,8 @@ def _normalise_value(value: Optional[Any]) -> Optional[str]:
 
 
 async def _extract_body_credentials(request: Request) -> Dict[str, Optional[str]]:
+    """Read optional ``login``/``password`` keys from the JSON body."""
+
     try:
         payload = await request.json()
     except Exception:  # pragma: no cover - body may be empty or malformed

@@ -15,4 +15,6 @@ for _, router in PROVIDER_REGISTRY.items():
 
 @app.get("/")
 async def root():
+    """Return a simple health-check payload for uptime monitoring."""
+
     return {"message": "Check4Parts API adapter is running"}

@@ -58,6 +58,8 @@ class ASGAPIError(Exception):
 
 
 class ASGAdapter:
+    """HTTP client for the ASG partner API with token caching support."""
+
     BASE_URL = "https://api-online.asg.ua/api"
     AUTH_SALT = "JHBds9328*(&Y"
 
@@ -335,6 +337,8 @@ class ASGAdapter:
         return result
 
     async def login(self, login: str, password: str) -> Dict[str, Any]:
+        """Authenticate with ASG using the provided credentials."""
+
         if not login or not login.strip():
             raise ASGAPIError(400, "Login cannot be empty")
         if not password or not password.strip():
@@ -345,6 +349,8 @@ class ASGAdapter:
         return await self._authenticate()
 
     async def logout(self) -> Dict[str, Any]:
+        """Revoke the active session token at ASG and clear caches."""
+
         try:
             result = await self._make_request("POST", "/auth/logout")
         except ASGAPIError:
@@ -355,9 +361,13 @@ class ASGAdapter:
         return result
 
     async def get_me(self) -> Dict[str, Any]:
+        """Return profile information for the authenticated ASG account."""
+
         return await self._make_request("POST", "/auth/me")
 
     async def refresh_token(self) -> Dict[str, Any]:
+        """Refresh the active access token and update the cache."""
+
         result = await self._make_request("POST", "/auth/refresh")
 
         new_token = result.get("access_token")
@@ -370,11 +380,15 @@ class ASGAdapter:
         return result
 
     async def get_orders(self) -> Dict[str, Any]:
+        """Retrieve the order list visible to the current ASG user."""
+
         return await self._make_request("POST", "/orders/all")
 
     async def create_order(
         self, products: List[Dict[str, Any]], test: bool = False
     ) -> Dict[str, Any]:
+        """Create a new order and perform payload validation."""
+
         if not products:
             raise ASGAPIError(400, "Products list cannot be empty")
 
@@ -405,6 +419,8 @@ class ASGAdapter:
         return await self._make_request("POST", "/orders/store", json_data=payload)
 
     async def cancel_order(self, order_id: Union[int, str]) -> Dict[str, Any]:
+        """Cancel an existing order identified by ``order_id``."""
+
         if not order_id:
             raise ASGAPIError(400, "Order ID cannot be empty")
 
@@ -420,6 +436,8 @@ class ASGAdapter:
     async def get_prices(
         self, filter_props: Optional[Dict[str, Any]] = None, page: int = 1
     ) -> Dict[str, Any]:
+        """Return paginated price data filtered by the provided criteria."""
+
         if page < 1:
             raise ASGAPIError(400, "Page number must be at least 1")
         if page > 10000:
@@ -433,6 +451,8 @@ class ASGAdapter:
         )
 
     async def get_categories(self) -> Dict[str, Any]:
+        """Retrieve the full category tree from ASG."""
+
         return await self._make_request("POST", "/categories")
 
     async def search_products(
@@ -442,6 +462,8 @@ class ASGAdapter:
         page: int = 1,
         per_page: int = 20,
     ) -> Dict[str, Any]:
+        """Search products by keyword, category, and pagination options."""
+
         if not query or not query.strip():
             raise ASGAPIError(400, "Search query cannot be empty")
         if page < 1:
@@ -466,6 +488,8 @@ class ASGAdapter:
         )
 
     async def get_product_details(self, product_id: Union[int, str]) -> Dict[str, Any]:
+        """Fetch pricing details for a single product identifier."""
+
         if not product_id:
             raise ASGAPIError(400, "Product ID cannot be empty")
 

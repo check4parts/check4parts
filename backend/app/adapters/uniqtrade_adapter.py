@@ -12,6 +12,8 @@ logger = logging.getLogger(__name__)
 
 
 class UniqTradeAPIError(Exception):
+    """Represents HTTP level failures originating from UniqTrade."""
+
     def __init__(
         self, status_code: int, message: str, details: Optional[Dict[str, Any]] = None
     ):
@@ -22,6 +24,8 @@ class UniqTradeAPIError(Exception):
 
 
 class UniqTradeAdapter:
+    """Client for UniqTrade's REST API handling authentication and retries."""
+
     BASE_URL = "https://order24-api.utr.ua"
 
     REQUEST_TIMEOUT = 30.0

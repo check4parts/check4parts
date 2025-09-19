@@ -12,6 +12,8 @@ logger = logging.getLogger(__name__)
 
 
 class OmegaAPIError(Exception):
+    """Raised when the Omega API returns an error response."""
+
     def __init__(
         self, status_code: int, message: str, details: Optional[Dict[str, Any]] = None
     ):
@@ -22,6 +24,8 @@ class OmegaAPIError(Exception):
 
 
 class OmegaAdapter:
+    """Async wrapper around the Omega REST API with retry handling."""
+
     BASE_URL = "https://public.omega.page"
 
     REQUEST_TIMEOUT = 30.0

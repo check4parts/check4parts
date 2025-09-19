@@ -21,6 +21,8 @@ class IntercarsAPIError(Exception):
 
 
 class IntercarsAdapter:
+    """High-level asynchronous client for the InterCars partner API."""
+
     BASE_URL = "https://webapi.intercars.eu"
     TOKEN_ENDPOINT = "/v1/oauth2/token"
     API_VERSION = "v1"
@@ -250,11 +252,15 @@ class IntercarsAdapter:
                 )
 
     async def authenticate(self, client_id: str, client_secret: str) -> Dict[str, Any]:
+        """Authenticate using the provided client credentials."""
+
         self._client_id = client_id
         self._client_secret = client_secret
         return await self._authenticate()
 
     async def inventory_quote(self, lines: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Request a quote for the given order lines."""
+
         if not lines:
             raise IntercarsAPIError(400, "Lines cannot be empty")
 
@@ -268,6 +274,8 @@ class IntercarsAdapter:
         locations: Optional[List[str]] = None,
         ship_to: Optional[str] = None,
     ) -> Dict[str, Any]:
+        """Check stock availability for SKUs with optional location filters."""
+
         if not skus:
             raise IntercarsAPIError(400, "SKUs cannot be empty")
 
@@ -280,6 +288,8 @@ class IntercarsAdapter:
         return await self._make_request("GET", "inventory/stock", params=params)
 
     async def inventory_stock(self, skus: List[str], location: str) -> Dict[str, Any]:
+        """Retrieve stock details for SKUs at a specific location."""
+
         if not skus:
             raise IntercarsAPIError(400, "SKUs cannot be empty")
         if not location:
@@ -299,6 +309,8 @@ class IntercarsAdapter:
         offset: int = 1,
         limit: int = 20,
     ) -> Dict[str, Any]:
+        """Search delivery metadata within a date range."""
+
         self._validate_date_range(creation_date_from, creation_date_to)
         self._validate_pagination(offset, limit)
 
@@ -311,6 +323,8 @@ class IntercarsAdapter:
         return await self._make_request("GET", "delivery/metadata", params=params)
 
     async def get_delivery(self, delivery_id: str) -> Dict[str, Any]:
+        """Fetch a single delivery record by identifier."""
+
         if not delivery_id or not delivery_id.strip():
             raise IntercarsAPIError(400, "Delivery ID cannot be empty")
 
@@ -319,6 +333,8 @@ class IntercarsAdapter:
     async def search_invoices(
         self, issue_date_from: str, issue_date_to: str, offset: int = 1, limit: int = 20
     ) -> Dict[str, Any]:
+        """Search invoices issued within the specified date range."""
+
         self._validate_date_range(issue_date_from, issue_date_to)
         self._validate_pagination(offset, limit)
 
@@ -331,12 +347,16 @@ class IntercarsAdapter:
         return await self._make_request("GET", "invoice/metadata", params=params)
 
     async def get_invoice(self, invoice_id: str) -> Dict[str, Any]:
+        """Retrieve invoice details by identifier."""
+
         if not invoice_id or not invoice_id.strip():
             raise IntercarsAPIError(400, "Invoice ID cannot be empty")
 
         return await self._make_request("GET", f"invoice/{invoice_id.strip()}")
 
     async def get_requisition(self, requisition_id: str) -> Dict[str, Any]:
+        """Fetch requisition information for the given identifier."""
+
         if not requisition_id or not requisition_id.strip():
             raise IntercarsAPIError(400, "Requisition ID cannot be empty")
 
@@ -347,6 +367,8 @@ class IntercarsAdapter:
     async def submit_requisition(
         self, requisition_data: Dict[str, Any]
     ) -> Dict[str, Any]:
+        """Submit a new requisition payload to InterCars."""
+
         if not requisition_data:
             raise IntercarsAPIError(400, "Requisition data cannot be empty")
 
@@ -360,6 +382,8 @@ class IntercarsAdapter:
     async def cancel_requisition(
         self, requisition_id: str, ship_to: Optional[str] = None
     ) -> Dict[str, Any]:
+        """Cancel an existing requisition optionally scoped to a ship-to."""
+
         if not requisition_id or not requisition_id.strip():
             raise IntercarsAPIError(400, "Requisition ID cannot be empty")
 
@@ -375,6 +399,8 @@ class IntercarsAdapter:
         offset: int = 1,
         limit: int = 20,
     ) -> Dict[str, Any]:
+        """Search orders created within the provided date window."""
+
         self._validate_date_range(creation_date_from, creation_date_to)
         self._validate_pagination(offset, limit)
 
@@ -389,18 +415,26 @@ class IntercarsAdapter:
         )
 
     async def get_order(self, order_id: str) -> Dict[str, Any]:
+        """Retrieve order details by identifier."""
+
         if not order_id or not order_id.strip():
             raise IntercarsAPIError(400, "Order ID cannot be empty")
 
         return await self._make_request("GET", f"sales/order/{order_id.strip()}")
 
     async def get_customer(self) -> Dict[str, Any]:
+        """Return the primary customer record associated with the token."""
+
         return await self._make_request("GET", "customer")
 
     async def get_customer_finances(self) -> Dict[str, Any]:
+        """Retrieve customer finance metrics such as balance and limits."""
+
         return await self._make_request("GET", "customer/finances")
 
     async def calculate_item_price(self, lines: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Calculate pricing for a set of items."""
+
         if not lines:
             raise IntercarsAPIError(400, "Lines cannot be empty")
 
