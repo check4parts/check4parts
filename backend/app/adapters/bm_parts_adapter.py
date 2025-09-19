@@ -17,28 +17,13 @@ class BMPartsAdapter:
         self, endpoint: str, params: dict = None, method: str = "GET", data: dict = None
     ):
         async with httpx.AsyncClient() as client:
-            if method == "GET":
-                response = await client.get(
-                    f"{self.BASE_URL}{endpoint}", params=params, headers=self.headers
-                )
-            elif method == "POST":
-                response = await client.post(
-                    f"{self.BASE_URL}{endpoint}",
-                    json=data,
-                    params=params,
-                    headers=self.headers,
-                )
-            elif method == "PUT":
-                response = await client.put(
-                    f"{self.BASE_URL}{endpoint}",
-                    json=data,
-                    params=params,
-                    headers=self.headers,
-                )
-            elif method == "DELETE":
-                response = await client.delete(
-                    f"{self.BASE_URL}{endpoint}", params=params, headers=self.headers
-                )
+            response = await client.request(
+                method,
+                f"{self.BASE_URL}{endpoint}",
+                params=params,
+                json=data,
+                headers=self.headers,
+            )
 
             response.raise_for_status()
             return response.json()
@@ -265,10 +250,10 @@ class BMPartsAdapter:
         params = {"response_fields": response_fields}
         return await self.fetch(endpoint, params=params)
 
-    async def delete_reserves(self, orders: list):
+    async def delete_reserves(self, orders: list[str]):
         endpoint = "/shopping/reserves"
-        params = {"orders": ",".join(orders)}
-        return await self.fetch(endpoint, method="DELETE", params=params)
+        data = {"orders": orders}
+        return await self.fetch(endpoint, method="DELETE", data=data)
 
     async def get_carts(self):
         endpoint = "/shopping/carts"
@@ -282,18 +267,21 @@ class BMPartsAdapter:
     async def add_product_to_cart(
         self, cart_uuid: str, product_uuid: str, quantity: int
     ):
-        endpoint = f"/shopping/cart/{cart_uuid}/product/{product_uuid}/{quantity}"
-        return await self.fetch(endpoint, method="POST")
+        endpoint = f"/shopping/cart/{cart_uuid}/product"
+        data = {"product_uuid": product_uuid, "quantity": quantity}
+        return await self.fetch(endpoint, method="POST", data=data)
 
     async def update_product_quantity_in_cart(
         self, cart_uuid: str, product_uuid: str, quantity: int
     ):
-        endpoint = f"/shopping/cart/{cart_uuid}/product/{product_uuid}/{quantity}"
-        return await self.fetch(endpoint, method="PUT")
+        endpoint = f"/shopping/cart/{cart_uuid}/product"
+        data = {"product_uuid": product_uuid, "quantity": quantity}
+        return await self.fetch(endpoint, method="PUT", data=data)
 
     async def delete_product_from_cart(self, cart_uuid: str, product_uuid: str):
-        endpoint = f"/shopping/cart/{cart_uuid}/product/{product_uuid}"
-        return await self.fetch(endpoint, method="DELETE")
+        endpoint = f"/shopping/cart/{cart_uuid}/product"
+        data = {"product_uuid": product_uuid}
+        return await self.fetch(endpoint, method="DELETE", data=data)
 
     async def delete_cart(self, cart_uuid: str):
         endpoint = f"/shopping/cart/{cart_uuid}"

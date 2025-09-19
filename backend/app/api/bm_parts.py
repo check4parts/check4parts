@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Request
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.adapters.bm_parts_adapter import BMPartsAdapter
 
@@ -16,9 +16,19 @@ class CartsWarehousesRequest(BaseModel):
 
 
 class ReserveOrderRequest(BaseModel):
-    order_uuid: str
-    comment: str
-    warehouse_uuid: str
+    order_uuid: str = Field(..., description="UUID of the order to reserve")
+    comment: str = Field(..., description="Additional comment for the reservation")
+    warehouse_uuid: str = Field(..., description="UUID of the warehouse handling the reserve")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "order_uuid": "53b9c4a2-69dc-4d4c-8e9a-51cbf51ef4f5",
+                "comment": "Reserve order for VIP client",
+                "warehouse_uuid": "8adf5d6e-0a3d-4d23-9fd3-2f8c3512b156",
+            }
+        }
+    )
 
 
 class UnionCartsRequest(BaseModel):
@@ -26,9 +36,64 @@ class UnionCartsRequest(BaseModel):
 
 
 class ChangeProductRequest(BaseModel):
-    cart_uuid: str
-    from_product_uuid: str
-    to_product_uuid: str
+    cart_uuid: str = Field(..., description="UUID of the cart to update")
+    from_product_uuid: str = Field(
+        ..., description="UUID of the product that should be replaced"
+    )
+    to_product_uuid: str = Field(
+        ..., description="UUID of the product that replaces the original"
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "cart_uuid": "c4c5429e-188c-4f41-90d5-51f86f5c593b",
+                "from_product_uuid": "ed88e3b9-8ba2-4b04-9cc8-25051ff3677f",
+                "to_product_uuid": "a73b38ef-3dd4-4bcf-a47b-3e1d18caea64",
+            }
+        }
+    )
+
+
+class DeleteReservesRequest(BaseModel):
+    orders: list[str] = Field(..., description="List of order UUIDs to remove")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "orders": [
+                    "97f08e21-41e4-492b-bc7b-4f469d6243a8",
+                    "12bbdcce-9f67-4f42-877f-387b0c36d742",
+                ]
+            }
+        }
+    )
+
+
+class CartProductRequest(BaseModel):
+    product_uuid: str = Field(..., description="UUID of the product")
+    quantity: int = Field(..., gt=0, description="Desired quantity of the product")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "product_uuid": "665694f0-07bf-4c4a-a45d-511c73403c42",
+                "quantity": 2,
+            }
+        }
+    )
+
+
+class CartProductDeleteRequest(BaseModel):
+    product_uuid: str = Field(..., description="UUID of the product to remove")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "product_uuid": "665694f0-07bf-4c4a-a45d-511c73403c42",
+            }
+        }
+    )
 
 
 class ChangeOwnerRequest(BaseModel):
@@ -277,9 +342,9 @@ async def get_bm_parts_reserves(response_fields: str = "all"):
 
 
 @router.delete("/reserves/")
-async def delete_bm_parts_reserves(orders: list):
+async def delete_bm_parts_reserves(request: DeleteReservesRequest):
     adapter = BMPartsAdapter()
-    return await adapter.delete_reserves(orders)
+    return await adapter.delete_reserves(request.orders)
 
 
 @router.get("/shopping/carts/")
@@ -295,28 +360,27 @@ async def create_bm_parts_cart(request: CreateCartRequest):
     return await adapter.create_cart(**data)
 
 
-@router.post("/shopping/cart/{cart_uuid}/product/{product_uuid}/{quantity}")
-async def add_product_to_bm_parts_cart(
-    cart_uuid: str, product_uuid: str, quantity: int
+@router.post("/shopping/cart/{cart_uuid}/product")
+async def add_product_to_bm_parts_cart(cart_uuid: str, request: CartProductRequest):
+    adapter = BMPartsAdapter()
+    data = request.model_dump()
+    return await adapter.add_product_to_cart(cart_uuid, **data)
+
+
+@router.put("/shopping/cart/{cart_uuid}/product")
+async def update_product_in_bm_parts_cart(cart_uuid: str, request: CartProductRequest):
+    adapter = BMPartsAdapter()
+    data = request.model_dump()
+    return await adapter.update_product_quantity_in_cart(cart_uuid, **data)
+
+
+@router.delete("/shopping/cart/{cart_uuid}/product")
+async def delete_product_from_bm_parts_cart(
+    cart_uuid: str, request: CartProductDeleteRequest
 ):
     adapter = BMPartsAdapter()
-    return await adapter.add_product_to_cart(cart_uuid, product_uuid, quantity)
-
-
-@router.put("/shopping/cart/{cart_uuid}/product/{product_uuid}/{quantity}")
-async def update_product_in_bm_parts_cart(
-    cart_uuid: str, product_uuid: str, quantity: int
-):
-    adapter = BMPartsAdapter()
-    return await adapter.update_product_quantity_in_cart(
-        cart_uuid, product_uuid, quantity
-    )
-
-
-@router.delete("/shopping/cart/{cart_uuid}/product/{product_uuid}")
-async def delete_product_from_bm_parts_cart(cart_uuid: str, product_uuid: str):
-    adapter = BMPartsAdapter()
-    return await adapter.delete_product_from_cart(cart_uuid, product_uuid)
+    data = request.model_dump()
+    return await adapter.delete_product_from_cart(cart_uuid, **data)
 
 
 @router.delete("/shopping/cart/")
