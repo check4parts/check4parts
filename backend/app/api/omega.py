@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field, field_validator
 
 from app.adapters.omega_adapter import OmegaAdapter, OmegaAPIError
+from app.config import ENABLE_MUTATING_GET_ROUTES
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/omega", tags=["omega"])
@@ -557,93 +558,108 @@ async def get_expense_document_details(request: GetExpenseDocumentDetailsRequest
         )
 
 
-@router.get("/basket/add-product")
-async def add_product_to_basket_query(
-    product_id: int = Query(..., description="Product ID"),
-    count: int = Query(..., gt=0, description="Product count must be positive"),
-):
-    async with OmegaAdapter() as adapter:
-        return await handle_api_errors(adapter.add_product_to_basket, product_id, count)
+if ENABLE_MUTATING_GET_ROUTES:
+    @router.get("/basket/add-product", deprecated=True)
+    async def add_product_to_basket_query(
+        product_id: int = Query(..., description="Product ID"),
+        count: int = Query(..., gt=0, description="Product count must be positive"),
+    ):
+        async with OmegaAdapter() as adapter:
+            return await handle_api_errors(
+                adapter.add_product_to_basket, product_id, count
+            )
 
 
-@router.get("/basket/remove-product")
-async def remove_product_from_basket_query(
-    product_id: int = Query(..., description="Product ID to remove"),
-):
-    async with OmegaAdapter() as adapter:
-        return await handle_api_errors(adapter.remove_product_from_basket, product_id)
+    @router.get("/basket/remove-product", deprecated=True)
+    async def remove_product_from_basket_query(
+        product_id: int = Query(..., description="Product ID to remove"),
+    ):
+        async with OmegaAdapter() as adapter:
+            return await handle_api_errors(
+                adapter.remove_product_from_basket, product_id
+            )
 
 
-@router.get("/claims/kind-claims")
-async def get_kind_claims_query(
-    product_id: str = Query(..., description="Product ID"),
-    doc_id: str = Query(..., description="Document ID"),
-):
-    async with OmegaAdapter() as adapter:
-        return await handle_api_errors(adapter.get_kind_claims, product_id, doc_id)
+    @router.get("/claims/kind-claims", deprecated=True)
+    async def get_kind_claims_query(
+        product_id: str = Query(..., description="Product ID"),
+        doc_id: str = Query(..., description="Document ID"),
+    ):
+        async with OmegaAdapter() as adapter:
+            return await handle_api_errors(
+                adapter.get_kind_claims, product_id, doc_id
+            )
 
 
-@router.get("/claims/discount")
-async def get_discount_query(
-    product_id: str = Query(..., description="Product ID"),
-    doc_id: str = Query(..., description="Document ID"),
-    type_id: str = Query(..., description="Type ID"),
-):
-    async with OmegaAdapter() as adapter:
-        return await handle_api_errors(
-            adapter.get_discount, product_id, doc_id, type_id
-        )
+    @router.get("/claims/discount", deprecated=True)
+    async def get_discount_query(
+        product_id: str = Query(..., description="Product ID"),
+        doc_id: str = Query(..., description="Document ID"),
+        type_id: str = Query(..., description="Type ID"),
+    ):
+        async with OmegaAdapter() as adapter:
+            return await handle_api_errors(
+                adapter.get_discount, product_id, doc_id, type_id
+            )
 
 
-@router.get("/claims/addresses")
-async def get_addresses_query(
-    kind: int = Query(..., description="Address kind"),
-):
-    async with OmegaAdapter() as adapter:
-        return await handle_api_errors(adapter.get_addresses, kind)
+    @router.get("/claims/addresses", deprecated=True)
+    async def get_addresses_query(
+        kind: int = Query(..., description="Address kind"),
+    ):
+        async with OmegaAdapter() as adapter:
+            return await handle_api_errors(adapter.get_addresses, kind)
 
 
-@router.get("/contact/get-contacts")
-async def get_contact_list_query(
-    customer_id: str = Query(..., description="Customer ID"),
-):
-    async with OmegaAdapter() as adapter:
-        return await handle_api_errors(adapter.get_contact_list, customer_id)
+    @router.get("/contact/get-contacts", deprecated=True)
+    async def get_contact_list_query(
+        customer_id: str = Query(..., description="Customer ID"),
+    ):
+        async with OmegaAdapter() as adapter:
+            return await handle_api_errors(
+                adapter.get_contact_list, customer_id
+            )
 
 
-@router.get("/contact/get-contact-details")
-async def get_contact_details_query(
-    contact_id: str = Query(..., description="Contact ID"),
-):
-    async with OmegaAdapter() as adapter:
-        return await handle_api_errors(adapter.get_contact_details, contact_id)
+    @router.get("/contact/get-contact-details", deprecated=True)
+    async def get_contact_details_query(
+        contact_id: str = Query(..., description="Contact ID"),
+    ):
+        async with OmegaAdapter() as adapter:
+            return await handle_api_errors(
+                adapter.get_contact_details, contact_id
+            )
 
 
-@router.get("/expense/get-expense-document")
-async def get_expense_document_query(
-    doc_id: str = Query(..., description="Document ID"),
-):
-    async with OmegaAdapter() as adapter:
-        return await handle_api_errors(adapter.get_expense_document, doc_id)
+    @router.get("/expense/get-expense-document", deprecated=True)
+    async def get_expense_document_query(
+        doc_id: str = Query(..., description="Document ID"),
+    ):
+        async with OmegaAdapter() as adapter:
+            return await handle_api_errors(
+                adapter.get_expense_document, doc_id
+            )
 
 
-@router.get("/expense/get-expense-document-list")
-async def get_expense_document_list_query(
-    start_date: str = Query(..., description="Start date in DD.MM.YYYY format"),
-    end_date: str = Query(..., description="End date in DD.MM.YYYY format"),
-):
-    async with OmegaAdapter() as adapter:
-        return await handle_api_errors(
-            adapter.get_expense_document_list, start_date, end_date
-        )
+    @router.get("/expense/get-expense-document-list", deprecated=True)
+    async def get_expense_document_list_query(
+        start_date: str = Query(..., description="Start date in DD.MM.YYYY format"),
+        end_date: str = Query(..., description="End date in DD.MM.YYYY format"),
+    ):
+        async with OmegaAdapter() as adapter:
+            return await handle_api_errors(
+                adapter.get_expense_document_list, start_date, end_date
+            )
 
 
-@router.get("/expense/get-expense-document-details")
-async def get_expense_document_details_query(
-    doc_id: str = Query(..., description="Document ID"),
-):
-    async with OmegaAdapter() as adapter:
-        return await handle_api_errors(adapter.get_expense_document_details, doc_id)
+    @router.get("/expense/get-expense-document-details", deprecated=True)
+    async def get_expense_document_details_query(
+        doc_id: str = Query(..., description="Document ID"),
+    ):
+        async with OmegaAdapter() as adapter:
+            return await handle_api_errors(
+                adapter.get_expense_document_details, doc_id
+            )
 
 
 @router.post("/invoice/add")

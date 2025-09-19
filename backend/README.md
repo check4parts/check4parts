@@ -54,3 +54,16 @@ ASGAdapter.configure_token_persistence(
 
 Clearing the persistence hooks or in-memory cache for testing can be done via
 `ASGAdapter.configure_token_persistence()` and `ASGAdapter.clear_token_cache()`.
+
+## Omega mutating GET routes
+
+Historically the Omega adapter exposed basket, claim, contact, and expense
+mutations as both `POST` and `GET` routes. Those `GET` variants have been
+deprecated and are now disabled by default. Clients should migrate to the
+existing `POST` endpoints, which remain unchanged.
+
+For backwards compatibility you can temporarily re-enable the legacy `GET`
+routes by setting the `ENABLE_MUTATING_GET_ROUTES` environment variable to a
+truthy value (for example `1` or `true`) before starting the service. When
+enabled, the routes are still marked as deprecated in the OpenAPI schema to
+discourage new integrations from relying on them.
