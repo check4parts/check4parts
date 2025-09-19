@@ -1,8 +1,10 @@
 import asyncio
 import hashlib
+import inspect
 import logging
+from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Union
 from urllib.parse import urljoin
 
 import httpx
@@ -10,6 +12,39 @@ import httpx
 from app.config import ASG_TOKEN
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class CachedCredentialToken:
+    token: str
+    expires_at: Optional[datetime] = None
+
+    def as_dict(self) -> Dict[str, Any]:
+        return {
+            "token": self.token,
+            "expires_at": self.expires_at.isoformat() if self.expires_at else None,
+        }
+
+    @classmethod
+    def from_payload(
+        cls, payload: Optional[Union["CachedCredentialToken", Dict[str, Any]]]
+    ) -> Optional["CachedCredentialToken"]:
+        if payload is None:
+            return None
+        if isinstance(payload, cls):
+            return payload
+        if isinstance(payload, dict):
+            token = payload.get("token")
+            if not token:
+                return None
+            expires_at = payload.get("expires_at")
+            if isinstance(expires_at, str):
+                try:
+                    expires_at = datetime.fromisoformat(expires_at)
+                except ValueError:
+                    expires_at = None
+            return cls(token=token, expires_at=expires_at)
+        return None
 
 
 class ASGAPIError(Exception):
@@ -31,6 +66,15 @@ class ASGAdapter:
     RETRY_BACKOFF = 1.0
     TOKEN_BUFFER_SECONDS = 300
 
+    _token_cache: Dict[str, "CachedCredentialToken"] = {}
+    _cache_lock: asyncio.Lock = asyncio.Lock()
+    _token_load_hook: Optional[
+        Callable[[str], Union["CachedCredentialToken", None, Awaitable[Optional["CachedCredentialToken"]]]]
+    ] = None
+    _token_save_hook: Optional[
+        Callable[[str, Optional["CachedCredentialToken"]], Union[None, Awaitable[None]]]
+    ] = None
+
     def __init__(self, login: str = None, password: str = None, token: str = None):
         self._login = login
         self._password = password
@@ -39,6 +83,7 @@ class ASGAdapter:
         self._client: Optional[httpx.AsyncClient] = None
 
     async def __aenter__(self):
+        await self._load_cached_token()
         self._client = httpx.AsyncClient(
             timeout=httpx.Timeout(self.REQUEST_TIMEOUT),
             limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
@@ -54,6 +99,13 @@ class ASGAdapter:
         return hashlib.sha256(auth_string.encode()).hexdigest()
 
     @property
+    def _credential_key(self) -> Optional[str]:
+        if not self._login or not self._password:
+            return None
+        raw = f"{self._login}:{self._password}"
+        return hashlib.sha256(raw.encode()).hexdigest()
+
+    @property
     def _is_token_valid(self) -> bool:
         if not self._access_token:
             return False
@@ -63,6 +115,97 @@ class ASGAdapter:
             datetime.utcnow() + timedelta(seconds=self.TOKEN_BUFFER_SECONDS)
             < self._token_expires_at
         )
+
+    @classmethod
+    def clear_token_cache(cls) -> None:
+        cls._token_cache.clear()
+
+    @classmethod
+    def configure_token_persistence(
+        cls,
+        *,
+        load_hook: Optional[Callable[[str], Union["CachedCredentialToken", None, Awaitable[Optional["CachedCredentialToken"]]]]] = None,
+        save_hook: Optional[
+            Callable[[str, Optional["CachedCredentialToken"]], Union[None, Awaitable[None]]]
+        ] = None,
+    ) -> None:
+        cls._token_load_hook = load_hook
+        cls._token_save_hook = save_hook
+
+    async def _invoke_hook(
+        self,
+        hook: Optional[Callable[..., Union[Any, Awaitable[Any]]]],
+        *args: Any,
+    ) -> Optional[Any]:
+        if not hook:
+            return None
+        try:
+            result = hook(*args)
+            if inspect.isawaitable(result):
+                return await result
+            return result
+        except Exception as exc:  # pragma: no cover - defensive logging
+            logger.warning("Token persistence hook raised an exception: %s", exc)
+            return None
+
+    async def _load_cached_token(self) -> None:
+        if self._access_token:
+            return
+
+        cache_key = self._credential_key
+        if not cache_key:
+            return
+
+        cached: Optional[CachedCredentialToken]
+        async with self._cache_lock:
+            cached = self._token_cache.get(cache_key)
+
+        token_loader = type(self)._token_load_hook
+        if not cached and token_loader:
+            loaded = await self._invoke_hook(token_loader, cache_key)
+            cached = CachedCredentialToken.from_payload(loaded)
+            if cached:
+                async with self._cache_lock:
+                    self._token_cache[cache_key] = cached
+
+        if not cached:
+            return
+
+        if cached.expires_at and cached.expires_at <= datetime.utcnow():
+            await self._clear_cached_token()
+            return
+
+        self._access_token = cached.token
+        self._token_expires_at = cached.expires_at
+
+    async def _store_cached_token(self) -> None:
+        cache_key = self._credential_key
+        if not cache_key or not self._access_token:
+            return
+
+        token_data = CachedCredentialToken(
+            token=self._access_token,
+            expires_at=self._token_expires_at,
+        )
+
+        async with self._cache_lock:
+            self._token_cache[cache_key] = token_data
+
+        await self._invoke_hook(type(self)._token_save_hook, cache_key, token_data)
+
+    async def _clear_cached_token(self) -> None:
+        cache_key = self._credential_key
+
+        self._access_token = None
+        self._token_expires_at = None
+
+        if not cache_key:
+            return
+
+        async with self._cache_lock:
+            self._token_cache.pop(cache_key, None)
+
+        await self._invoke_hook(type(self)._token_save_hook, cache_key, None)
 
     async def _get_client(self) -> httpx.AsyncClient:
         if not self._client:
@@ -89,8 +232,7 @@ class ASGAdapter:
         )
 
         if response.status_code == 401:
-            self._access_token = None
-            self._token_expires_at = None
+            await self._clear_cached_token()
 
         raise ASGAPIError(response.status_code, error_message, error_data)
 
@@ -189,6 +331,7 @@ class ASGAdapter:
         self._token_expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
 
         logger.info("Successfully authenticated with ASG API")
+        await self._store_cached_token()
         return result
 
     async def login(self, login: str, password: str) -> Dict[str, Any]:
@@ -204,13 +347,12 @@ class ASGAdapter:
     async def logout(self) -> Dict[str, Any]:
         try:
             result = await self._make_request("POST", "/auth/logout")
-            self._access_token = None
-            self._token_expires_at = None
-            return result
         except ASGAPIError:
-            self._access_token = None
-            self._token_expires_at = None
+            await self._clear_cached_token()
             raise
+
+        await self._clear_cached_token()
+        return result
 
     async def get_me(self) -> Dict[str, Any]:
         return await self._make_request("POST", "/auth/me")
@@ -223,6 +365,7 @@ class ASGAdapter:
             self._access_token = new_token
             expires_in = result.get("expires_in", 3600)
             self._token_expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
+            await self._store_cached_token()
 
         return result
 
