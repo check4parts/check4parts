@@ -1,10 +1,11 @@
 import logging
 from typing import List, Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, validator
 
 from app.adapters.intercars_adapter import IntercarsAdapter, IntercarsAPIError
+from app.dependencies.intercars import get_intercars_adapter
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/intercars", tags=["intercars"])
@@ -83,11 +84,6 @@ class AuthRequest(BaseModel):
 class CalculateItemPriceRequest(BaseModel):
     lines: List[InventoryLine] = Field(..., min_items=1)
 
-
-def get_adapter() -> IntercarsAdapter:
-    return IntercarsAdapter()
-
-
 async def handle_api_errors(func, *args, **kwargs):
     try:
         return await func(*args, **kwargs)
@@ -100,18 +96,22 @@ async def handle_api_errors(func, *args, **kwargs):
 
 
 @router.post("/authorize")
-async def authorize(request: AuthRequest):
-    async with IntercarsAdapter() as adapter:
-        return await handle_api_errors(
-            adapter.authenticate, request.client_id, request.client_secret
-        )
+async def authorize(
+    request: AuthRequest,
+    adapter: IntercarsAdapter = Depends(get_intercars_adapter),
+):
+    return await handle_api_errors(
+        adapter.authenticate, request.client_id, request.client_secret
+    )
 
 
 @router.post("/inventory/quote")
-async def inventory_quote(request: InventoryQuoteRequest):
-    async with IntercarsAdapter() as adapter:
-        lines_data = [line.model_dump(by_alias=True) for line in request.lines]
-        return await handle_api_errors(adapter.inventory_quote, lines_data)
+async def inventory_quote(
+    request: InventoryQuoteRequest,
+    adapter: IntercarsAdapter = Depends(get_intercars_adapter),
+):
+    lines_data = [line.model_dump(by_alias=True) for line in request.lines]
+    return await handle_api_errors(adapter.inventory_quote, lines_data)
 
 
 @router.get("/search/products")
@@ -119,22 +119,24 @@ async def get_stock_balance(
     sku: List[str] = Query(..., description="List of SKUs"),
     location: Optional[List[str]] = Query(None, description="List of locations"),
     ship_to: Optional[str] = Query(None, description="Ship to location"),
+    adapter: IntercarsAdapter = Depends(get_intercars_adapter),
 ):
     if not sku:
         raise HTTPException(status_code=400, detail="At least one SKU is required")
 
-    async with IntercarsAdapter() as adapter:
-        return await handle_api_errors(
-            adapter.get_stock_balance, skus=sku, locations=location, ship_to=ship_to
-        )
+    return await handle_api_errors(
+        adapter.get_stock_balance, skus=sku, locations=location, ship_to=ship_to
+    )
 
 
 @router.post("/inventory/stock")
-async def inventory_stock(request: InventoryStockRequest):
-    async with IntercarsAdapter() as adapter:
-        return await handle_api_errors(
-            adapter.inventory_stock, request.skus, request.location
-        )
+async def inventory_stock(
+    request: InventoryStockRequest,
+    adapter: IntercarsAdapter = Depends(get_intercars_adapter),
+):
+    return await handle_api_errors(
+        adapter.inventory_stock, request.skus, request.location
+    )
 
 
 @router.get("/delivery/search")
@@ -143,24 +145,26 @@ async def search_deliveries(
     creation_date_to: str = Query(..., description="End date"),
     offset: int = Query(1, ge=1, description="Pagination offset"),
     limit: int = Query(20, ge=1, le=100, description="Items per page"),
+    adapter: IntercarsAdapter = Depends(get_intercars_adapter),
 ):
-    async with IntercarsAdapter() as adapter:
-        return await handle_api_errors(
-            adapter.search_deliveries,
-            creation_date_from,
-            creation_date_to,
-            offset,
-            limit,
-        )
+    return await handle_api_errors(
+        adapter.search_deliveries,
+        creation_date_from,
+        creation_date_to,
+        offset,
+        limit,
+    )
 
 
 @router.get("/delivery/{delivery_id}")
-async def get_delivery(delivery_id: str):
+async def get_delivery(
+    delivery_id: str,
+    adapter: IntercarsAdapter = Depends(get_intercars_adapter),
+):
     if not delivery_id.strip():
         raise HTTPException(status_code=400, detail="Delivery ID cannot be empty")
 
-    async with IntercarsAdapter() as adapter:
-        return await handle_api_errors(adapter.get_delivery, delivery_id.strip())
+    return await handle_api_errors(adapter.get_delivery, delivery_id.strip())
 
 
 @router.get("/invoice/search")
@@ -169,44 +173,52 @@ async def search_invoices(
     issue_date_to: str = Query(..., description="End date"),
     offset: int = Query(1, ge=1, description="Pagination offset"),
     limit: int = Query(20, ge=1, le=100, description="Items per page"),
+    adapter: IntercarsAdapter = Depends(get_intercars_adapter),
 ):
-    async with IntercarsAdapter() as adapter:
-        return await handle_api_errors(
-            adapter.search_invoices, issue_date_from, issue_date_to, offset, limit
-        )
+    return await handle_api_errors(
+        adapter.search_invoices, issue_date_from, issue_date_to, offset, limit
+    )
 
 
 @router.get("/invoice/{invoice_id}")
-async def get_invoice(invoice_id: str):
+async def get_invoice(
+    invoice_id: str,
+    adapter: IntercarsAdapter = Depends(get_intercars_adapter),
+):
     if not invoice_id.strip():
         raise HTTPException(status_code=400, detail="Invoice ID cannot be empty")
 
-    async with IntercarsAdapter() as adapter:
-        return await handle_api_errors(adapter.get_invoice, invoice_id.strip())
+    return await handle_api_errors(adapter.get_invoice, invoice_id.strip())
 
 
 @router.get("/requisition/{requisition_id}")
-async def get_requisition(requisition_id: str):
+async def get_requisition(
+    requisition_id: str,
+    adapter: IntercarsAdapter = Depends(get_intercars_adapter),
+):
     if not requisition_id.strip():
         raise HTTPException(status_code=400, detail="Requisition ID cannot be empty")
 
-    async with IntercarsAdapter() as adapter:
-        return await handle_api_errors(adapter.get_requisition, requisition_id.strip())
+    return await handle_api_errors(adapter.get_requisition, requisition_id.strip())
 
 
 @router.post("/sales/requisition")
-async def submit_requisition(request: SubmitRequisitionRequest):
-    async with IntercarsAdapter() as adapter:
-        requisition_data = request.dict(exclude_none=True, by_alias=True)
-        return await handle_api_errors(adapter.submit_requisition, requisition_data)
+async def submit_requisition(
+    request: SubmitRequisitionRequest,
+    adapter: IntercarsAdapter = Depends(get_intercars_adapter),
+):
+    requisition_data = request.dict(exclude_none=True, by_alias=True)
+    return await handle_api_errors(adapter.submit_requisition, requisition_data)
 
 
 @router.post("/requisition/cancel")
-async def cancel_requisition(request: CancelRequisitionRequest):
-    async with IntercarsAdapter() as adapter:
-        return await handle_api_errors(
-            adapter.cancel_requisition, request.requisition_id, request.ship_to
-        )
+async def cancel_requisition(
+    request: CancelRequisitionRequest,
+    adapter: IntercarsAdapter = Depends(get_intercars_adapter),
+):
+    return await handle_api_errors(
+        adapter.cancel_requisition, request.requisition_id, request.ship_to
+    )
 
 
 @router.get("/sales/order/search")
@@ -215,36 +227,42 @@ async def search_orders(
     creation_date_to: str = Query(..., description="End date"),
     offset: int = Query(1, ge=1, description="Pagination offset"),
     limit: int = Query(20, ge=1, le=100, description="Items per page"),
+    adapter: IntercarsAdapter = Depends(get_intercars_adapter),
 ):
-    async with IntercarsAdapter() as adapter:
-        return await handle_api_errors(
-            adapter.search_orders, creation_date_from, creation_date_to, offset, limit
-        )
+    return await handle_api_errors(
+        adapter.search_orders, creation_date_from, creation_date_to, offset, limit
+    )
 
 
 @router.get("/sales/order/{order_id}")
-async def get_order(order_id: str):
+async def get_order(
+    order_id: str,
+    adapter: IntercarsAdapter = Depends(get_intercars_adapter),
+):
     if not order_id.strip():
         raise HTTPException(status_code=400, detail="Order ID cannot be empty")
 
-    async with IntercarsAdapter() as adapter:
-        return await handle_api_errors(adapter.get_order, order_id.strip())
+    return await handle_api_errors(adapter.get_order, order_id.strip())
 
 
 @router.get("/customer")
-async def get_customer():
-    async with IntercarsAdapter() as adapter:
-        return await handle_api_errors(adapter.get_customer)
+async def get_customer(
+    adapter: IntercarsAdapter = Depends(get_intercars_adapter),
+):
+    return await handle_api_errors(adapter.get_customer)
 
 
 @router.get("/customer/finances")
-async def get_customer_finances():
-    async with IntercarsAdapter() as adapter:
-        return await handle_api_errors(adapter.get_customer_finances)
+async def get_customer_finances(
+    adapter: IntercarsAdapter = Depends(get_intercars_adapter),
+):
+    return await handle_api_errors(adapter.get_customer_finances)
 
 
 @router.post("/pricing/quote")
-async def calculate_item_price(request: CalculateItemPriceRequest):
-    async with IntercarsAdapter() as adapter:
-        lines_data = [line.model_dump(by_alias=True) for line in request.lines]
-        return await handle_api_errors(adapter.calculate_item_price, lines_data)
+async def calculate_item_price(
+    request: CalculateItemPriceRequest,
+    adapter: IntercarsAdapter = Depends(get_intercars_adapter),
+):
+    lines_data = [line.model_dump(by_alias=True) for line in request.lines]
+    return await handle_api_errors(adapter.calculate_item_price, lines_data)

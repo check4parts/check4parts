@@ -6,32 +6,27 @@ from fastapi.testclient import TestClient
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from app.api.intercars import router  # noqa: E402
+from app.api.intercars import get_intercars_adapter, router  # noqa: E402
 
 
 class DummyIntercarsAdapter:
     last_payload = None
-
-    async def __aenter__(self):
-        return self
-
-    async def __aexit__(self, exc_type, exc, tb):
-        return False
 
     async def submit_requisition(self, payload):
         type(self).last_payload = payload
         return {"status": "ok"}
 
 
-def test_submit_requisition_accepts_camel_case(monkeypatch):
+async def _provide_dummy_adapter():
+    yield DummyIntercarsAdapter()
+
+
+def test_submit_requisition_accepts_camel_case():
     app = FastAPI()
     app.include_router(router)
+    app.dependency_overrides[get_intercars_adapter] = _provide_dummy_adapter
 
     client = TestClient(app)
-
-    monkeypatch.setattr(
-        "app.api.intercars.IntercarsAdapter", DummyIntercarsAdapter
-    )
 
     payload = {
         "lines": [

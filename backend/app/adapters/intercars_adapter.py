@@ -1,9 +1,11 @@
 import asyncio
 import logging
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urljoin
 import httpx
+
+from app.services.token_cache import CachedToken, TokenCacheProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -28,12 +30,19 @@ class IntercarsAdapter:
     RETRY_BACKOFF = 1.0
     TOKEN_BUFFER_SECONDS = 300
 
-    def __init__(self, client_id: str = None, client_secret: str = None):
+    def __init__(
+        self,
+        client_id: str | None = None,
+        client_secret: str | None = None,
+        token_cache: TokenCacheProtocol | None = None,
+    ):
         self._client_id = client_id
         self._client_secret = client_secret
         self._access_token: Optional[str] = None
         self._token_expires_at: Optional[datetime] = None
         self._client: Optional[httpx.AsyncClient] = None
+        self._refresh_token: Optional[str] = None
+        self._token_cache = token_cache
 
     async def __aenter__(self):
         self._client = httpx.AsyncClient(
@@ -55,6 +64,11 @@ class IntercarsAdapter:
             < self._token_expires_at
         )
 
+    def _cache_key(self) -> Optional[Tuple[str, str]]:
+        if not self._client_id or not self._client_secret:
+            return None
+        return self._client_id, self._client_secret
+
     async def _get_client(self) -> httpx.AsyncClient:
         if not self._client:
             self._client = httpx.AsyncClient(
@@ -63,7 +77,51 @@ class IntercarsAdapter:
             )
         return self._client
 
+    async def _load_cached_token(self) -> None:
+        if not self._token_cache:
+            return
+
+        cache_key = self._cache_key()
+        if not cache_key:
+            return
+
+        cached_token = await self._token_cache.get(*cache_key)
+        if not cached_token:
+            return
+
+        self._access_token = cached_token.access_token
+        self._refresh_token = cached_token.refresh_token
+        self._token_expires_at = cached_token.expires_at
+
+    async def _store_token_in_cache(self) -> None:
+        if not self._token_cache:
+            return
+
+        cache_key = self._cache_key()
+        if not cache_key or not self._access_token or not self._token_expires_at:
+            return
+
+        token = CachedToken(
+            access_token=self._access_token,
+            refresh_token=self._refresh_token,
+            expires_at=self._token_expires_at,
+        )
+        await self._token_cache.set(*cache_key, token)
+
+    async def _clear_cached_token(self) -> None:
+        if not self._token_cache:
+            return
+
+        cache_key = self._cache_key()
+        if not cache_key:
+            return
+
+        await self._token_cache.clear(*cache_key)
+
     async def _ensure_authenticated(self) -> None:
+        if not self._is_token_valid:
+            await self._load_cached_token()
+
         if not self._is_token_valid:
             if not self._client_id or not self._client_secret:
                 raise IntercarsAPIError(401, "Authentication credentials not provided")
@@ -90,6 +148,7 @@ class IntercarsAdapter:
 
             result = response.json()
             self._access_token = result.get("access_token")
+            self._refresh_token = result.get("refresh_token")
 
             if not self._access_token:
                 raise IntercarsAPIError(
@@ -98,6 +157,8 @@ class IntercarsAdapter:
 
             expires_in = result.get("expires_in", 3600)
             self._token_expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
+
+            await self._store_token_in_cache()
 
             logger.info("Successfully authenticated with InterCars API")
             return result
@@ -126,6 +187,8 @@ class IntercarsAdapter:
         if response.status_code == 401:
             self._access_token = None
             self._token_expires_at = None
+            self._refresh_token = None
+            await self._clear_cached_token()
 
         raise IntercarsAPIError(response.status_code, error_message, error_data)
 
