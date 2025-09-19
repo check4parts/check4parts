@@ -1,66 +1,30 @@
-import asyncio
-from typing import Any, Optional
+from typing import Any
 
 import httpx
-from fastapi import HTTPException
 
+from app.adapters.base import ExternalAPIAdapter, ExternalAPIError
 from app.config import BM_PARTS_TOKEN
 
 
-class BMPartsAdapterError(HTTPException):
+class BMPartsAdapterError(ExternalAPIError):
     """HTTP error raised when the BM Parts upstream returns an error."""
 
-    def __init__(
-        self,
-        status_code: int,
-        detail: Any | None = None,
-        message: str | None = None,
-        headers: Optional[dict[str, str]] = None,
-    ) -> None:
-        fallback_message = message or "BM Parts API request failed"
-        detail_payload = detail if detail is not None else {"message": fallback_message}
-        super().__init__(status_code=status_code, detail=detail_payload, headers=headers)
-        self.message = fallback_message
+    def __init__(self, provider: str = "BM Parts", **kwargs) -> None:
+        super().__init__(provider, **kwargs)
 
 
-class BMPartsAdapter:
+class BMPartsAdapter(ExternalAPIAdapter):
     """Asynchronous client for interacting with the BM Parts REST API."""
 
     BASE_URL = "https://api.bm.parts"
-    REQUEST_TIMEOUT = 30.0
-    MAX_RETRIES = 3
-    RETRY_BACKOFF = 1.0
+    PROVIDER_NAME = "BM Parts"
+    ERROR_CLS = BMPartsAdapterError
 
     def __init__(self, client: httpx.AsyncClient | None = None) -> None:
-        self.token = BM_PARTS_TOKEN
-        self.headers: dict[str, str] = {}
+        headers: dict[str, str] = {}
         if BM_PARTS_TOKEN:
-            self.headers["Authorization"] = BM_PARTS_TOKEN
-        self._client: httpx.AsyncClient | None = client
-        self._owns_client = client is None
-
-    async def __aenter__(self) -> "BMPartsAdapter":
-        if not self._client:
-            self._client = httpx.AsyncClient(
-                timeout=httpx.Timeout(self.REQUEST_TIMEOUT),
-                limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
-            )
-            self._owns_client = True
-        return self
-
-    async def __aexit__(self, exc_type, exc, tb) -> None:
-        await self.aclose()
-
-    async def aclose(self) -> None:
-        if self._client and self._owns_client:
-            await self._client.aclose()
-        self._client = None
-
-    async def _get_client(self) -> httpx.AsyncClient:
-        if not self._client:
-            await self.__aenter__()
-        assert self._client is not None
-        return self._client
+            headers["Authorization"] = BM_PARTS_TOKEN
+        super().__init__(client=client, default_headers=headers)
 
     async def fetch(
         self, endpoint: str, params: dict | None = None, method: str = "GET", data: dict | None = None
@@ -75,58 +39,9 @@ class BMPartsAdapter:
 
         Returns:
             The decoded JSON response returned by the upstream service.
-
-        Raises:
-            BMPartsAdapterError: If the request fails or the response body
-                cannot be decoded as JSON.
         """
 
-        client = await self._get_client()
-        url = f"{self.BASE_URL}{endpoint}"
-
-        for attempt in range(self.MAX_RETRIES):
-            try:
-                response = await client.request(
-                    method,
-                    url,
-                    params=params,
-                    json=data,
-                    headers=self.headers,
-                )
-                response.raise_for_status()
-                try:
-                    return response.json()
-                except ValueError as exc:
-                    raise BMPartsAdapterError(
-                        status_code=502,
-                        detail={
-                            "message": "Invalid response payload from BM Parts API",
-                            "response_text": response.text,
-                        },
-                    ) from exc
-            except httpx.HTTPStatusError as exc:
-                raise BMPartsAdapterError(
-                    status_code=exc.response.status_code,
-                    detail=self._extract_error_detail(exc.response),
-                    message="BM Parts API responded with an error",
-                ) from exc
-            except httpx.RequestError as exc:
-                if attempt < self.MAX_RETRIES - 1:
-                    await asyncio.sleep(self.RETRY_BACKOFF * (2**attempt))
-                    continue
-                raise BMPartsAdapterError(
-                    status_code=502,
-                    detail={
-                        "message": "Failed to communicate with BM Parts API",
-                        "error": str(exc),
-                    },
-                ) from exc
-
-    def _extract_error_detail(self, response: httpx.Response) -> Any:
-        try:
-            return response.json()
-        except ValueError:
-            return {"message": response.text or "Unknown error"}
+        return await self.request(method, endpoint, params=params, json=data)
 
     async def get_profile(self):
         endpoint = "/profile/me"
