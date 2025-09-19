@@ -186,56 +186,56 @@ class SearchProductsResponse(BaseModel):
 
 @router.get("/profile/me/")
 async def get_bm_parts_profile():
-    adapter = BMPartsAdapter()
-    return await adapter.get_profile()
+    async with BMPartsAdapter() as adapter:
+        return await adapter.get_profile()
 
 
 @router.get("/aggregations/advertisements/")
 async def get_aggregations_advertisements():
-    adapter = BMPartsAdapter()
-    return await adapter.get_aggregations_advertisements()
+    async with BMPartsAdapter() as adapter:
+        return await adapter.get_aggregations_advertisements()
 
 
 @router.get("/aggregations/end_nodes/")
 async def get_aggregations_end_nodes():
-    adapter = BMPartsAdapter()
-    return await adapter.get_aggregations_end_nodes()
+    async with BMPartsAdapter() as adapter:
+        return await adapter.get_aggregations_end_nodes()
 
 
 @router.get("/aggregations/brands/")
 async def get_aggregations_brands():
-    adapter = BMPartsAdapter()
-    return await adapter.get_aggregations_brands()
+    async with BMPartsAdapter() as adapter:
+        return await adapter.get_aggregations_brands()
 
 
 @router.get("/aggregations/nodes/")
 async def get_aggregations_nodes():
-    adapter = BMPartsAdapter()
-    return await adapter.get_aggregations_nodes()
+    async with BMPartsAdapter() as adapter:
+        return await adapter.get_aggregations_nodes()
 
 
 @router.get("/aggregations/cars/")
 async def get_aggregations_cars():
-    adapter = BMPartsAdapter()
-    return await adapter.get_aggregations_cars()
+    async with BMPartsAdapter() as adapter:
+        return await adapter.get_aggregations_cars()
 
 
 @router.get("/search/history/")
 async def get_search_history():
-    adapter = BMPartsAdapter()
-    return await adapter.get_search_history()
+    async with BMPartsAdapter() as adapter:
+        return await adapter.get_search_history()
 
 
 @router.get("/search/suggest/")
 async def get_search_suggestions(q: str, products_as: str = "obj"):
-    adapter = BMPartsAdapter()
-    return await adapter.get_search_suggestions(q, products_as)
+    async with BMPartsAdapter() as adapter:
+        return await adapter.get_search_suggestions(q, products_as)
 
 
 @router.get("/search/groups/")
 async def get_product_groups():
-    adapter = BMPartsAdapter()
-    return await adapter.get_product_groups()
+    async with BMPartsAdapter() as adapter:
+        return await adapter.get_product_groups()
 
 
 @router.get("/search/products")
@@ -245,185 +245,185 @@ async def search_products(
     include_crosses: bool = False,
     include_additional: bool = False,
 ):
-    adapter = BMPartsAdapter()
-    filters = dict(request.query_params)
-    filters.pop("q", None)
-    filters.pop("include_crosses", None)
-    filters.pop("include_additional", None)
+    async with BMPartsAdapter() as adapter:
+        filters = dict(request.query_params)
+        filters.pop("q", None)
+        filters.pop("include_crosses", None)
+        filters.pop("include_additional", None)
 
-    return await adapter.search_products_enhanced(
-        q,
-        include_crosses=include_crosses,
-        include_additional=include_additional,
-        **filters
-    )
+        return await adapter.search_products_enhanced(
+            q,
+            include_crosses=include_crosses,
+            include_additional=include_additional,
+            **filters
+        )
 
 
 @router.get("/products/{product_uuid}/additional")
 async def get_models_by_brand(product_uuid: str):
-    adapter = BMPartsAdapter()
-    return await adapter.get_product_additional(product_uuid)
+    async with BMPartsAdapter() as adapter:
+        return await adapter.get_product_additional(product_uuid)
 
 
 @router.get("/models_by_brand/{car_name}")
 async def get_models_by_brand(car_name: str):
-    adapter = BMPartsAdapter()
-    return await adapter.get_models_by_brand(car_name)
+    async with BMPartsAdapter() as adapter:
+        return await adapter.get_models_by_brand(car_name)
 
 
 @router.get("/engines_by_model/{car_name}/{model_name}")
 async def get_engines_by_model(car_name: str, model_name: str):
-    adapter = BMPartsAdapter()
-    return await adapter.get_engines_by_model(car_name, model_name)
+    async with BMPartsAdapter() as adapter:
+        return await adapter.get_engines_by_model(car_name, model_name)
 
 
 @router.get("/group_filters/{group_path}")  # TODO: to test
 async def get_group_filters(group_path: str):
-    adapter = BMPartsAdapter()
-    return await adapter.get_group_filters(group_path)
+    async with BMPartsAdapter() as adapter:
+        return await adapter.get_group_filters(group_path)
 
 
 @router.post("/reserved_products_detailed/")
 async def get_reserved_products_detailed(request: ReservedProductsUUIDRequest):
-    adapter = BMPartsAdapter()
-    return await adapter.get_reserved_products_detailed(request.reserves_uuid)
+    async with BMPartsAdapter() as adapter:
+        return await adapter.get_reserved_products_detailed(request.reserves_uuid)
 
 
 @router.post("/reserved_products/")
 async def get_reserved_products(request: ReservedProductsUUIDRequest):
-    adapter = BMPartsAdapter()
-    return await adapter.get_reserved_products(request.reserves_uuid)
+    async with BMPartsAdapter() as adapter:
+        return await adapter.get_reserved_products(request.reserves_uuid)
 
 
 @router.post("/reserve_order/")
 async def reserve_order(request: ReserveOrderRequest):
-    adapter = BMPartsAdapter()
-    data = request.model_dump()
-    return await adapter.reserve_order(**data)
+    async with BMPartsAdapter() as adapter:
+        data = request.model_dump()
+        return await adapter.reserve_order(**data)
 
 
 @router.get("/carts/count/")
 async def get_bm_parts_carts_count():
-    adapter = BMPartsAdapter()
-    return await adapter.get_carts_count()
+    async with BMPartsAdapter() as adapter:
+        return await adapter.get_carts_count()
 
 
 @router.post("/carts/union/")
 async def post_bm_parts_union_carts(request: UnionCartsRequest):
-    adapter = BMPartsAdapter()
-    data = request.model_dump()
-    return await adapter.union_carts(**data)
+    async with BMPartsAdapter() as adapter:
+        data = request.model_dump()
+        return await adapter.union_carts(**data)
 
 
 @router.post("/change_product/")
 async def post_bm_parts_change_product_in_cart(request: ChangeProductRequest):
-    adapter = BMPartsAdapter()
-    data = request.model_dump()
-    return await adapter.change_product_in_cart(**data)
+    async with BMPartsAdapter() as adapter:
+        data = request.model_dump()
+        return await adapter.change_product_in_cart(**data)
 
 
 @router.post("/cart_products/")
 async def get_bm_parts_cart_products(request: CartsWarehousesRequest):
-    adapter = BMPartsAdapter()
-    return await adapter.get_cart_products(request.cart_uuid, request.warehouses)
+    async with BMPartsAdapter() as adapter:
+        return await adapter.get_cart_products(request.cart_uuid, request.warehouses)
 
 
 @router.post("/change_owner/")
 async def post_bm_parts_change_cart_owner(request: ChangeOwnerRequest):
-    adapter = BMPartsAdapter()
-    data = request.model_dump()
-    return await adapter.change_cart_owner(**data)
+    async with BMPartsAdapter() as adapter:
+        data = request.model_dump()
+        return await adapter.change_cart_owner(**data)
 
 
 @router.get("/reserves/")
 async def get_bm_parts_reserves(response_fields: str = "all"):
-    adapter = BMPartsAdapter()
-    return await adapter.get_reserves(response_fields)
+    async with BMPartsAdapter() as adapter:
+        return await adapter.get_reserves(response_fields)
 
 
 @router.delete("/reserves/")
 async def delete_bm_parts_reserves(request: DeleteReservesRequest):
-    adapter = BMPartsAdapter()
-    return await adapter.delete_reserves(request.orders)
+    async with BMPartsAdapter() as adapter:
+        return await adapter.delete_reserves(request.orders)
 
 
 @router.get("/shopping/carts/")
 async def get_bm_parts_carts():
-    adapter = BMPartsAdapter()
-    return await adapter.get_carts()
+    async with BMPartsAdapter() as adapter:
+        return await adapter.get_carts()
 
 
 @router.post("/shopping/carts/")
 async def create_bm_parts_cart(request: CreateCartRequest):
-    adapter = BMPartsAdapter()
-    data = request.model_dump()
-    return await adapter.create_cart(**data)
+    async with BMPartsAdapter() as adapter:
+        data = request.model_dump()
+        return await adapter.create_cart(**data)
 
 
 @router.post("/shopping/cart/{cart_uuid}/product")
 async def add_product_to_bm_parts_cart(cart_uuid: str, request: CartProductRequest):
-    adapter = BMPartsAdapter()
-    data = request.model_dump()
-    return await adapter.add_product_to_cart(cart_uuid, **data)
+    async with BMPartsAdapter() as adapter:
+        data = request.model_dump()
+        return await adapter.add_product_to_cart(cart_uuid, **data)
 
 
 @router.put("/shopping/cart/{cart_uuid}/product")
 async def update_product_in_bm_parts_cart(cart_uuid: str, request: CartProductRequest):
-    adapter = BMPartsAdapter()
-    data = request.model_dump()
-    return await adapter.update_product_quantity_in_cart(cart_uuid, **data)
+    async with BMPartsAdapter() as adapter:
+        data = request.model_dump()
+        return await adapter.update_product_quantity_in_cart(cart_uuid, **data)
 
 
 @router.delete("/shopping/cart/{cart_uuid}/product")
 async def delete_product_from_bm_parts_cart(
     cart_uuid: str, request: CartProductDeleteRequest
 ):
-    adapter = BMPartsAdapter()
-    data = request.model_dump()
-    return await adapter.delete_product_from_cart(cart_uuid, **data)
+    async with BMPartsAdapter() as adapter:
+        data = request.model_dump()
+        return await adapter.delete_product_from_cart(cart_uuid, **data)
 
 
 @router.delete("/shopping/cart/")
 async def delete_bm_parts_cart(cart_uuid: str):
-    adapter = BMPartsAdapter()
-    return await adapter.delete_cart(cart_uuid)
+    async with BMPartsAdapter() as adapter:
+        return await adapter.delete_cart(cart_uuid)
 
 
 @router.get("/shopping/cart/{cart_uuid}")
 async def get_bm_parts_cart(cart_uuid: str):
-    adapter = BMPartsAdapter()
-    return await adapter.get_cart(cart_uuid)
+    async with BMPartsAdapter() as adapter:
+        return await adapter.get_cart(cart_uuid)
 
 
 @router.post("/shopping/cart/{cart_uuid}")
 async def update_bm_parts_cart(cart_uuid: str, request: UpdateCartRequest):
-    adapter = BMPartsAdapter()
-    data = request.model_dump()
-    return await adapter.update_cart(cart_uuid, **data)
+    async with BMPartsAdapter() as adapter:
+        data = request.model_dump()
+        return await adapter.update_cart(cart_uuid, **data)
 
 
 @router.get("/product/{product_uuid}/in_waiting/")
 async def get_in_waiting(product_uuid: str):
-    adapter = BMPartsAdapter()
-    return await adapter.get_in_waiting(product_uuid)
+    async with BMPartsAdapter() as adapter:
+        return await adapter.get_in_waiting(product_uuid)
 
 
 @router.get("/product/{product_uuid}/in_stocks/")
 async def get_in_stocks(product_uuid: str, id_type: str = None):
-    adapter = BMPartsAdapter()
-    return await adapter.get_in_stocks(product_uuid, id_type)
+    async with BMPartsAdapter() as adapter:
+        return await adapter.get_in_stocks(product_uuid, id_type)
 
 
 @router.get("/product/{product_uuid}/prices/")
 async def get_prices(product_uuid: str, id_type: str = None):
-    adapter = BMPartsAdapter()
-    return await adapter.get_prices(product_uuid, id_type)
+    async with BMPartsAdapter() as adapter:
+        return await adapter.get_prices(product_uuid, id_type)
 
 
 @router.get("/product/{product_uuid}/price/")
 async def get_price(product_uuid: str, currency: str = "UAH", id_type: str = None):
-    adapter = BMPartsAdapter()
-    return await adapter.get_price(product_uuid, currency, id_type)
+    async with BMPartsAdapter() as adapter:
+        return await adapter.get_price(product_uuid, currency, id_type)
 
 
 @router.get("/product/{product_uuid}/")
@@ -434,35 +434,35 @@ async def get_product_info(
     id_type: str = None,
     products_as: str = "obj",
 ):
-    adapter = BMPartsAdapter()
-    return await adapter.get_product_info(
-        product_uuid, warehouses, currency, id_type, products_as
-    )
+    async with BMPartsAdapter() as adapter:
+        return await adapter.get_product_info(
+            product_uuid, warehouses, currency, id_type, products_as
+        )
 
 
 @router.get("/detection_cases/")
 async def get_detection_cases():
-    adapter = BMPartsAdapter()
-    return await adapter.get_detection_cases()
+    async with BMPartsAdapter() as adapter:
+        return await adapter.get_detection_cases()
 
 
 @router.get("/reclamations/")
 async def get_reclamations(page: int = 1, per_page: int = 10, direction: str = "desc"):
-    adapter = BMPartsAdapter()
-    return await adapter.get_reclamations(page, per_page, direction)
+    async with BMPartsAdapter() as adapter:
+        return await adapter.get_reclamations(page, per_page, direction)
 
 
 @router.post("/reclamation/")
 async def create_reclamation(request: CreateReclamationRequest):
-    adapter = BMPartsAdapter()
-    data = request.model_dump()
-    return await adapter.create_reclamation(data)
+    async with BMPartsAdapter() as adapter:
+        data = request.model_dump()
+        return await adapter.create_reclamation(data)
 
 
 @router.get("/returns/")
 async def get_returns(page: int = 1, per_page: int = 10, direction: str = "desc"):
-    adapter = BMPartsAdapter()
-    return await adapter.get_returns(page, per_page, direction)
+    async with BMPartsAdapter() as adapter:
+        return await adapter.get_returns(page, per_page, direction)
 
 
 @router.get("/sold_products/")
@@ -473,37 +473,37 @@ async def get_sold_products(
     reason: str = "returns",
     q: str = None,
 ):
-    adapter = BMPartsAdapter()
-    return await adapter.get_sold_products(page, per_page, direction, reason, q)
+    async with BMPartsAdapter() as adapter:
+        return await adapter.get_sold_products(page, per_page, direction, reason, q)
 
 
 @router.delete("/returns/products/{uuid}")
 async def delete_product_return(uuid: str):
-    adapter = BMPartsAdapter()
-    return await adapter.delete_product_return(uuid)
+    async with BMPartsAdapter() as adapter:
+        return await adapter.delete_product_return(uuid)
 
 
 @router.get("/returns/products/")
 async def get_return_products():
-    adapter = BMPartsAdapter()
-    return await adapter.get_return_products()
+    async with BMPartsAdapter() as adapter:
+        return await adapter.get_return_products()
 
 
 @router.post("/returns/request/")
 async def create_return_request(request: CreateReturnRequest):
-    adapter = BMPartsAdapter()
-    data = request.model_dump()
-    return await adapter.create_return_request(data)
+    async with BMPartsAdapter() as adapter:
+        data = request.model_dump()
+        return await adapter.create_return_request(data)
 
 
 @router.get("/returns/causes/")
 async def get_return_causes():
-    adapter = BMPartsAdapter()
-    return await adapter.get_return_causes()
+    async with BMPartsAdapter() as adapter:
+        return await adapter.get_return_causes()
 
 
 @router.post("/returns/notify/")
 async def notify_return(request: NotifyReturnRequest):
-    adapter = BMPartsAdapter()
-    data = request.model_dump()
-    return await adapter.notify_return(**data)
+    async with BMPartsAdapter() as adapter:
+        data = request.model_dump()
+        return await adapter.notify_return(**data)
