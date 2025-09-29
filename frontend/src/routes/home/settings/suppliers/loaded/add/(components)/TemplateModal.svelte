@@ -60,6 +60,10 @@
 		}
 		loadingSaveTemplate = false;
 	}
+
+	function clearTemplate() {
+		template.template.forEach((r) => (r.header = ''));
+	}
 </script>
 
 <Dialog.Root bind:open={openState}>
@@ -124,6 +128,13 @@
 				</div>
 
 				<div class="mt-4 flex justify-end gap-4">
+					<button 
+						type="button"
+						class="btn preset-filled-primary-50-950 flex items-center justify-center font-bold"
+						onclick={clearTemplate}
+					>
+						 Очистит
+					</button>
 					<button
 						type="button"
 						class="btn preset-filled-primary-100-900 flex items-center justify-center font-bold"
