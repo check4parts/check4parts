@@ -89,6 +89,15 @@
 	});
 
 	$effect(() => {
+		if (uploadedToDB) {
+			stepState = 'success';
+		}
+		if (errorMessage) {
+			stepState = 'error';
+		}
+	})
+
+	$effect(() => {
 		template.metadata.providerId = selected_provider;
 	});
 

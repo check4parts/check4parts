@@ -5,14 +5,14 @@
 	import { onMount } from 'svelte';
 
 	let { children } = $props();
-	let group = $state<string>("api");
+	let group = $state<string>();
 
 	$effect(() => {
 		const basePath = '/home/settings/suppliers';
 		const newPath = `${basePath}/${group}`;
 
-    if (!page.url.pathname.includes(newPath)) {
-			goto(newPath, { replaceState: true });
+    if (group && !page.url.pathname.includes(newPath)) {
+			goto(newPath);
 		}
 	});
 
@@ -22,6 +22,8 @@
 
 		if (lastSegment === 'api' || lastSegment === 'loaded') {
 			group = lastSegment;
+		} else {
+			group = 'api';
 		}
 	});
 </script>
