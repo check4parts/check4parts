@@ -19,6 +19,7 @@
 		form?: ActionData;
 		id: string;
 		action?: string;
+		title?: string;
 	}
 
 	let {
@@ -30,8 +31,16 @@
 		form = $bindable(),
 		data = $bindable(),
 		action = '?/edit',
+		title = 'Редагування деталей',
 		id
 	}: Props = $props();
+
+	let saving = $state(false);
+	$effect(() => {
+		if (openState) {
+			saving = false;
+		}
+	});
 </script>
 
 <Dialog.Root bind:open={openState}>
@@ -50,7 +59,7 @@
 			<Dialog.Title
 				class="з-4 flex w-full items-center justify-end text-lg font-semibold tracking-tight"
 			>
-				<h4 class="h5 w-full text-center">Редагування деталей</h4>
+				<h4 class="h5 w-full text-center">{title}</h4>
 			</Dialog.Title>
 			<Dialog.Description class="p-4">
 				<form
@@ -61,6 +70,7 @@
 							update({ reset: false });
 						};
 					}}
+					onsubmit={() => (saving = true)}
 					{action}
 				>
 					<input type="hidden" name="id" value={id} />
@@ -92,7 +102,17 @@
 							class="btn preset-outlined-primary-950-50 text-xl"
 							onclick={modalClose}>Скасувати</button
 						>
-						<button type="submit" class="btn preset-filled-primary-950-50 text-xl">Зберегти</button>
+						<button
+							type="submit"
+							class="btn preset-filled-primary-950-50 text-xl"
+							disabled={saving}
+						>
+							{#if saving}
+								Збереження...
+							{:else}
+								Зберегти
+							{/if}
+						</button>
 					</div>
 				</form>
 			</Dialog.Description>

@@ -24,7 +24,7 @@
 			<Tooltip.Trigger>
 				<img src="/small-menu-icon.svg" alt="edit" class="size-4" />
 			</Tooltip.Trigger>
-			<Tooltip.Content side="left" class="z-50">
+			<Tooltip.Content side="left" class="z-50 text-lg">
 				<div class="card flex flex-col items-start border border-gray-300 bg-white">
 					<button
 						class="px-2"

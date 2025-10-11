@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import ConfirmDeleteModal from '$lib/components/modals/ConfirmDeleteModal.svelte';
-	import EditModal from '$lib/components/modals/EditModal.svelte';
+	import EditModal from '$lib/components/modals/PropsModal.svelte';
 	import type { Tables } from '$lib/database.types.js';
 	import toast, { ToastIcon } from 'svelte-french-toast';
 	import CarCard from './(components)/CarCard.svelte';
@@ -117,7 +117,7 @@
 			value: client.note ?? '',
 			placeholder: 'Примітки',
 			type: 'textarea',
-			name: 'notes'
+			name: 'note'
 		}
 	]}
 	id={client.id}
@@ -156,6 +156,7 @@
 
 <EditModal
 	bind:openState={addCarModalOpen}
+	title="Додати автомобіль"
 	data={[
 		{
 			title: 'Назва',
@@ -265,7 +266,7 @@
 	<section id="cars">
 		<h2 class="h5">
 			Автомобілі:
-			<button onclick={() => (addCarModalOpen = true)} aria-label="Доадти автомобіль">
+			<button onclick={() => (addCarModalOpen = true)} class="text-primary-800 ml-2" aria-label="Додати автомобіль">
 				<i class="fa-solid fa-circle-plus"></i>
 			</button>
 		</h2>
