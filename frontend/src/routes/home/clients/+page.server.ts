@@ -3,7 +3,7 @@ import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ depends, locals: { supabase } }) => {
     depends('supabase:db:clients');
-
+    depends('supabase:db:client_types');
     const [clientsResponse, clientTypesResponse] = await Promise.all([
         supabase.from('clients').select('*,cars(*)'),
         supabase.from('client_types').select('*'),

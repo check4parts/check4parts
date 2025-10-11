@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { Dialog } from 'bits-ui';
-	import type { ActionData } from '../$types';
+	import type { ActionData } from '../../../routes/home/settings/suppliers/api/[id]/$types';
 	import InputTextField from '$lib/components/inputs/edit-modal/InputTextField.svelte';
 	import InputTextareaField from '$lib/components/inputs/edit-modal/InputTextareaField.svelte';
 
@@ -18,6 +18,7 @@
 		}[];
 		form?: ActionData;
 		id: string;
+		action?: string;
 	}
 
 	let {
@@ -28,10 +29,9 @@
 		editPage = $bindable(),
 		form = $bindable(),
 		data = $bindable(),
+		action = '?/edit',
 		id
 	}: Props = $props();
-
-	const comment_field_props = data.find((item) => item.type === 'textarea');
 </script>
 
 <Dialog.Root bind:open={openState}>
@@ -40,7 +40,7 @@
 			class="data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/80"
 		/>
 		<Dialog.Content
-			class="fixed top-[50%] left-[50%] z-50 h-fit w-1/2 translate-x-[-50%] translate-y-[-50%] rounded-xl bg-white p-4"
+			class="fixed left-[50%] top-[50%] z-50 h-fit w-1/2 translate-x-[-50%] translate-y-[-50%] rounded-xl bg-white p-4"
 		>
 			<div class="flex w-full justify-end">
 				<button type="button" class="preset-tonal-surface-100" onclick={modalClose}>
@@ -61,7 +61,7 @@
 							update({ reset: false });
 						};
 					}}
-					action="?/edit"
+					{action}
 				>
 					<input type="hidden" name="id" value={id} />
 					<input type="hidden" name="data_props" value={JSON.stringify(data)} />
@@ -76,12 +76,16 @@
 							/>
 						{/if}
 					{/each}
-					<InputTextareaField
-						lable={comment_field_props!.title}
-						name={comment_field_props!.name}
-						placeholder={comment_field_props!.placeholder}
-						defaultValue={comment_field_props!.value}
-					/>
+					{#each data as item}
+						{#if item.type === 'textarea'}
+							<InputTextareaField
+								lable={item.title}
+								name={item.name}
+								placeholder={item.placeholder}
+								defaultValue={item.value}
+							/>
+						{/if}
+					{/each}
 					<div class="flex justify-end gap-4">
 						<button
 							type="button"
