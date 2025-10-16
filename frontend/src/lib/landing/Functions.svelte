@@ -62,7 +62,7 @@
 </script>
 
 <div class="container mx-auto py-8">
-	<div class="bg-primary-950 text-surface-50 mx-auto max-w-5xl rounded-3xl p-8">
+	<div class="bg-primary-950 text-surface-50 mx-auto max-w-5xl sm:rounded-3xl p-8">
 		<!-- Header -->
 		<div class="mb-8 text-center">
 			<h2 class="text-2xl font-bold">Основні функції</h2>

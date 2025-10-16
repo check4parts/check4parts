@@ -6,8 +6,8 @@
 	let error = $state('');
 </script>
 
-<section class="container mx-auto py-16">
-	<div class="bg-primary-950 text-surface-50 mx-auto max-w-6xl rounded-3xl p-12">
+<section class="container mx-auto sm:py-16">
+	<div class="bg-primary-950 text-surface-50 mx-auto max-w-6xl sm:rounded-3xl p-12">
 		<div class="flex flex-col gap-8 lg:flex-row">
 			<!-- Ліва частина: заголовок та опис -->
 			<div class="lg:w-1/2">

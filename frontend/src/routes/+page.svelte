@@ -13,10 +13,11 @@
 	<title>CHECK4PARTS</title>
 </svelte:head>
 
-<main class="bg-surface-50 bg-[url(/hero-vector.svg)] bg-top bg-no-repeat pt-10 overflow-hidden">
-	<header class="container mx-auto mb-10 flex items-center justify-between">
+<main class="bg-surface-50 overflow-hidden bg-[url(/hero-vector.svg)] bg-top bg-no-repeat pt-10">
+	<header class="container mx-auto mb-10 flex items-center justify-between px-2">
 		<h1 class="h3">CHECK<span class="text-primary-600">4PARTS</span></h1>
-		<nav>
+
+		<nav class="hidden lg:block">
 			<ul class="flex items-center gap-20">
 				<li><a href="#hero">Головна</a></li>
 				<li><a href="#functions">Функції</a></li>
@@ -46,10 +47,10 @@
 	>
 		<Advantages />
 	</section>
-	<section id="contacts">
+	<section id="contacts" class="mt-20">
 		<ContactForm />
 	</section>
-	<footer class="mx-auto mt-5 bg-primary-950 py-3">
-		<p class="container mx-auto text-left text-surface-50">© 2025 Check4parts Landing Page. </p>
+	<footer class="sm:bg-primary-950 bg-surface-50 mx-auto py-3">
+		<p class="sm:text-surface-50 text-primary-950 container mx-auto text-left">© 2025 Check4parts Landing Page.</p>
 	</footer>
 </main>
