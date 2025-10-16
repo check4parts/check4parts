@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import SmallSearchInput from '$lib/components/inputs/search-bar/SmallSearchInput.svelte';
 	import EdidDeleteElementMenu from '$lib/components/modals/EditDeleteModalInTable.svelte';
 	import toast from 'svelte-french-toast';
 
@@ -58,7 +59,7 @@
 	<a class="btn preset-filled-primary-950-50" href="/home/settings/users/add">Додати користувача</a>
 </header>
 <section class="my-5 flex items-center justify-between">
-	<label class="relative block w-full focus-within:text-gray-500">
+	<!-- <label class="relative block w-full focus-within:text-gray-500">
 		<img src="/search-icon.svg" alt="search" class="absolute top-1/5 left-4 size-6" />
 		<input
 			type="text"
@@ -68,7 +69,12 @@
 			placeholder="Пошук за ПІБ, посадою, адрессою"
 			class="input h-10 w-1/3 appearance-none rounded-3xl px-4 py-3 pl-14 placeholder:text-sm focus:outline-none"
 		/>
-	</label>
+	</label> -->
+	<SmallSearchInput 
+		bind:value={search}
+		placeholder="Пошук за ПІБ, посадою, адрессою"
+		class="w-1/3"
+	/>
 </section>
 
 {#if staff.length > 0}

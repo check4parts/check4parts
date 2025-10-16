@@ -1,5 +1,5 @@
 import { fail, redirect } from '@sveltejs/kit';
-import type { PageServerLoad } from './$types';
+import type { Actions, PageServerLoad } from './$types';
 import { signUpNewUser } from '$lib/utils/signUpNewUser';
 
 export const load: PageServerLoad = async ({ depends, locals: { supabase } }) => {
@@ -12,7 +12,7 @@ export const load: PageServerLoad = async ({ depends, locals: { supabase } }) =>
 	return { roles: roles ?? [], points: points ?? [] };
 };
 
-export const actions = {
+export const actions: Actions = {
 	add: async ({ request, locals: { supabase } }) => {
 		const form_data = await request.formData();
 

@@ -34,13 +34,6 @@
 
 <header class="flex items-center justify-between">
 	<h2 class="h3">Додавання користувача</h2>
-	<button
-		type="button"
-		class="btn preset-filled-primary-950-50"
-		onclick={() => {
-			location.href = '/home/settings/users?success';
-		}}>Тест</button
-	>
 </header>
 
 <section class="m-5">

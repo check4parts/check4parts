@@ -1,7 +1,6 @@
 <script lang="ts">
 	let {
 		lable,
-		type = 'text',
 		name,
 		placeholder,
 		required = false,
@@ -27,16 +26,15 @@
 			<span>*</span>
 		{/if}</span
 	>
-	<input
+	<textarea
 		class:border-error-400={missing && !value}
 		class:border={missing && !value}
-		class="input focus:outline-primary-500 h-12 bg-white placeholder:text-gray-400 focus:outline-2"
+		class="textarea focus:outline-primary-500 bg-white placeholder:text-gray-400 focus:outline-2"
 		style="box-shadow: none;"
 		{name}
-		{type}
 		{placeholder}
 		{required}
 		{disabled}
 		bind:value
-	/>
+	></textarea>
 </label>

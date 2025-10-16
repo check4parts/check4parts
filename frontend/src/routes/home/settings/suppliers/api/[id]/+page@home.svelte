@@ -2,7 +2,7 @@
 	import ConfirmDeleteModal from '$lib/components/modals/ConfirmDeleteModal.svelte';
 	import toast from 'svelte-french-toast';
 	import ActiveStatteBadge from './(components)/ActiveStatteBadge.svelte';
-	import EditModal from './(components)/EditModal.svelte';
+	import EditModal from '$lib/components/modals/PropsModal.svelte';
 	import { enhance } from '$app/forms';
 	import editLogo from '/static/edit-button-icon.svg';
 
