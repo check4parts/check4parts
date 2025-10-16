@@ -5,7 +5,7 @@
 	import Functions from '$lib/landing/Functions.svelte';
 	import Hero from '$lib/landing/Hero.svelte';
 
-	let { data } = $props();
+	let { data, form } = $props();
 	let { user } = $derived(data);
 </script>
 
@@ -48,7 +48,7 @@
 		<Advantages />
 	</section>
 	<section id="contacts" class="mt-20">
-		<ContactForm />
+		<ContactForm {form} />
 	</section>
 	<footer class="sm:bg-primary-950 bg-surface-50 mx-auto py-3">
 		<p class="sm:text-surface-50 text-primary-950 container mx-auto text-left">© 2025 Check4parts Landing Page.</p>
