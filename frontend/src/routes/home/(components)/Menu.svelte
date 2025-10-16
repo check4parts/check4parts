@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { slide } from 'svelte/transition';
-	
+
 	let { page }: { page: string } = $props();
 
 	let subMenuOpen = $state<string>();
@@ -12,7 +12,7 @@
 	pageTitle: string,
 	pageIcon: string,
 	selectedPageIcon: string,
-	link: string | undefined = undefined,
+	link: string | undefined = undefined
 )}
 	<button
 		class:font-bold={page === pageValue}
@@ -24,7 +24,7 @@
 			}
 			subMenuOpen = pageValue;
 			if (link) {
-				goto(link)
+				goto(link);
 			}
 		}}
 	>
@@ -53,6 +53,15 @@
 	<ul>
 		<li>
 			{@render menuItem(
+				'clients',
+				'Клієнти',
+				'/clients-icon.svg',
+				'/clients-icon-selected.svg',
+				'/home/clients'
+			)}
+		</li>
+		<li>
+			{@render menuItem(
 				'settings',
 				'Налаштування',
 				'/settings-icon.svg',
@@ -63,18 +72,6 @@
 				{ page: 'users', title: 'Користувачі' },
 				{ page: 'suppliers', title: 'Постачальники' }
 			])}
-		</li>
-		<li>
-			{@render menuItem(
-				'clients',
-				'Клієнти',
-				'/clients-icon.svg',
-				'/clients-icon-selected.svg',
-				'/home/clients'
-			)}
-			<!-- {@render subMenu('clients', undefined, [
-				{ page: '', title: 'Список' },
-			])} -->
 		</li>
 	</ul>
 </div>
