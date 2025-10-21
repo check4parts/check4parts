@@ -3,8 +3,7 @@
     import { page } from '$app/state';
     import toast from 'svelte-french-toast';
     import ClientTypeSelect from './(components)/ClientTypeSelect.svelte';
-    import SmallSearchInput from '$lib/components/inputs/search-bar/SmallSearchInput.svelte';
-	import { stringFromBase64URL } from '@supabase/ssr';
+	import SmallSearchInput from '$lib/components/inputs/search-bar/SmallSearchInput.svelte';
 
     let { data } = $props();
     let { clients, clientTypes } = $derived(data);
@@ -53,9 +52,14 @@
     $inspect(filteredClients);
 
     const isSuccess = page.url.searchParams.has('success');
+    const isDeleted = page.url.searchParams.has('deleted');
     $effect(() => {
         if (isSuccess) {
             toast.success('Клієнт успішно додано');
+            goto('/home/clients', { replaceState: true, noScroll: true, keepFocus: true });
+        }
+        if (isDeleted) {
+            toast.success('Клієнта успішно видалено');
             goto('/home/clients', { replaceState: true, noScroll: true, keepFocus: true });
         }
     });

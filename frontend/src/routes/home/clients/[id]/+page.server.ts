@@ -1,19 +1,29 @@
+import { error, fail, redirect } from "@sveltejs/kit";
 import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async ({ depends, locals: { supabase }, params }) => {
     depends('supabase:db:clients');
     depends('supabase:db:client_types');
     const client_id = params.id;
-    const { data: client } = await supabase
+    const { data: client, error: clientError } = await supabase
         .from('clients')
         .select('*,cars(*),client_types(*)')
         .eq('id', client_id)
         .single();
 
-    const { data: client_types } = await supabase
+    const { data: client_types, error: typeError } = await supabase
         .from('client_types')
         .select('*')
         .order('name', { ascending: true });
+
+    if (clientError || typeError) {
+        if (clientError?.code === "PGRST116") {
+            throw error(404, { message: 'Клієнта не знайдено' });
+        } else {
+            console.error('Error fetching client or client types:', clientError || typeError);
+            throw error(500, { message: 'Помилка завантаження даних клієнта' });
+        }
+    }
 
     return { client: client ?? {}, types: client_types ?? [] };
 };
@@ -59,7 +69,7 @@ export const actions = {
             return { success: false, message: error.message };
         }
 
-        return { success: true, message: 'Клієнта успішно видалено' };
+        return redirect(303, '/home/clients?deleted');;
     },
     addCar: async ({ request, locals: { supabase }, params }) => {
         const client_id = params.id;
