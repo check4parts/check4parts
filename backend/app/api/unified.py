@@ -20,7 +20,7 @@ async def search_space(
 ):
     """Search across enabled suppliers using a BM Parts–like response shape."""
 
-    return await unified_search(request)
+    return await unified_search(request, client_id=user.get("id"))
 
 
 @router.post("/products")
@@ -30,5 +30,5 @@ async def products_space(
 ):
     """Fetch product details from multiple suppliers while tolerating partial failures."""
 
-    return await unified_products(request)
+    return await unified_products(request, client_id=user.get("id"))
 

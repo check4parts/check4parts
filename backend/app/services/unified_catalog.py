@@ -1,9 +1,4 @@
-"""Helpers for orchestrating supplier search and product lookups.
-
-This module builds a unified abstraction over the various supplier adapters. It
-fan-outs requests, normalises payloads to a BM Parts–like shape, and
-coalesces partial failures into metadata instead of raising.
-"""
+"""Unified abstraction over supplier adapters with credential-aware routing."""
 
 from __future__ import annotations
 
@@ -18,6 +13,10 @@ from app.adapters.asg_adapter import ASGAdapter, ASGAPIError
 from app.adapters.bm_parts_adapter import BMPartsAdapter, BMPartsAdapterError
 from app.adapters.omega_adapter import OmegaAdapter, OmegaAPIError
 from app.adapters.uniqtrade_adapter import UniqTradeAPIError, UniqTradeAdapter
+from app.services.supplier_credentials import (
+    DEFAULT_CREDENTIAL_MANAGER,
+    SupplierCredentialManager,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -262,11 +261,29 @@ SEARCH_HANDLERS: dict[str, Callable[[str, Dict[str, Any]], Awaitable[Any]]] = {
 }
 
 
-async def unified_search(request: UnifiedSearchRequest) -> Dict[str, Any]:
-    """Execute a cross-supplier product search."""
+def _prepare_supplier_options(
+    supplier: str,
+    *,
+    client_id: str | None,
+    manager: SupplierCredentialManager,
+    request_options: Dict[str, Any],
+) -> Dict[str, Any]:
+    return manager.get_effective_credentials(
+        supplier, client_id=client_id, overrides=request_options
+    )
+
+
+async def unified_search(
+    request: UnifiedSearchRequest,
+    *,
+    client_id: str | None = None,
+    credential_manager: SupplierCredentialManager = DEFAULT_CREDENTIAL_MANAGER,
+) -> Dict[str, Any]:
+    """Execute a cross-supplier product search with credential-aware routing."""
 
     requested_suppliers = request.suppliers or SUPPORTED_SUPPLIERS
     tasks: list[Awaitable[SupplierResult]] = []
+    skipped: list[str] = []
 
     for supplier in requested_suppliers:
         handler = SEARCH_HANDLERS.get(supplier)
@@ -284,8 +301,22 @@ async def unified_search(request: UnifiedSearchRequest) -> Dict[str, Any]:
             )
             continue
 
-        options = request.supplier_options.get(supplier, {})
-        tasks.append(_call_handler(supplier, lambda h=handler, o=options: h(request.query, o)))
+        options = _prepare_supplier_options(
+            supplier,
+            client_id=client_id,
+            manager=credential_manager,
+            request_options=request.supplier_options.get(supplier, {}),
+        )
+
+        if not credential_manager.has_required_credentials(supplier, options):
+            skipped.append(supplier)
+            continue
+
+        tasks.append(
+            _call_handler(
+                supplier, lambda h=handler, o=options: h(request.query, o)
+            )
+        )
 
     results = await asyncio.gather(*tasks)
     products = [product for result in results for product in result.products]
@@ -302,6 +333,7 @@ async def unified_search(request: UnifiedSearchRequest) -> Dict[str, Any]:
             "requested_suppliers": requested_suppliers,
             "failed_suppliers": failed,
             "partial_failure": bool(failed),
+            "skipped_suppliers": skipped,
         },
     }
 
@@ -345,10 +377,16 @@ PRODUCT_HANDLERS: dict[str, Callable[[str, Dict[str, Any]], Awaitable[Any]]] = {
 }
 
 
-async def unified_products(request: UnifiedProductsRequest) -> Dict[str, Any]:
-    """Fetch product details from multiple suppliers concurrently."""
+async def unified_products(
+    request: UnifiedProductsRequest,
+    *,
+    client_id: str | None = None,
+    credential_manager: SupplierCredentialManager = DEFAULT_CREDENTIAL_MANAGER,
+) -> Dict[str, Any]:
+    """Fetch product details while honouring per-client credential availability."""
 
     tasks: list[Awaitable[SupplierResult]] = []
+    skipped: list[str] = []
 
     for product in request.products:
         handler = PRODUCT_HANDLERS.get(product.supplier)
@@ -366,10 +404,23 @@ async def unified_products(request: UnifiedProductsRequest) -> Dict[str, Any]:
             )
             continue
 
+        options = _prepare_supplier_options(
+            product.supplier,
+            client_id=client_id,
+            manager=credential_manager,
+            request_options=product.options,
+        )
+
+        if not credential_manager.has_required_credentials(product.supplier, options):
+            skipped.append(product.supplier)
+            continue
+
         tasks.append(
             _call_handler(
                 product.supplier,
-                lambda h=handler, p=product: h(p.product_id, p.options),
+                lambda h=handler, pid=product.product_id, o=options: h(
+                    pid, o
+                ),
             )
         )
 
@@ -386,6 +437,7 @@ async def unified_products(request: UnifiedProductsRequest) -> Dict[str, Any]:
         "meta": {
             "failed_suppliers": failed,
             "partial_failure": bool(failed),
+            "skipped_suppliers": skipped,
         },
     }
 
