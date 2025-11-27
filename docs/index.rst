@@ -9,4 +9,5 @@ Check4Parts Technical Documentation
    backend_modules
    api_reference
    development
+   frontend_integration
 
