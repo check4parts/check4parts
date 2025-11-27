@@ -20,10 +20,13 @@ class BMPartsAdapter(ExternalAPIAdapter):
     PROVIDER_NAME = "BM Parts"
     ERROR_CLS = BMPartsAdapterError
 
-    def __init__(self, client: httpx.AsyncClient | None = None) -> None:
+    def __init__(
+        self, client: httpx.AsyncClient | None = None, token: str | None = None
+    ) -> None:
         headers: dict[str, str] = {}
-        if BM_PARTS_TOKEN:
-            headers["Authorization"] = BM_PARTS_TOKEN
+        auth_token = token or BM_PARTS_TOKEN
+        if auth_token:
+            headers["Authorization"] = auth_token
         super().__init__(client=client, default_headers=headers)
 
     async def fetch(

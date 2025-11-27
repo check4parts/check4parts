@@ -50,3 +50,7 @@ Services
    :members:
    :undoc-members:
 
+.. automodule:: app.services.unified_catalog
+   :members:
+   :undoc-members:
+

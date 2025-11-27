@@ -1,6 +1,6 @@
 """API package exports and provider registry."""
 
-from . import asg, bm_parts, intercars, omega, search, uniqtrade
+from . import asg, bm_parts, intercars, omega, search, uniqtrade, unified
 
 PROVIDER_REGISTRY = {
     "bm-parts": bm_parts.router,
@@ -9,6 +9,7 @@ PROVIDER_REGISTRY = {
     "omega": omega.router,
     "uniqtrade": uniqtrade.router,
     "search": search.router,
+    "space": unified.router,
 }
 
 __all__ = ["PROVIDER_REGISTRY"]
