@@ -32,6 +32,11 @@ Backend Packages
     into adapter calls, handles payload validation with Pydantic models, and
     exposes a consistent URL scheme (``/<provider-slug>/...``).
 
+``app/api/unified.py``
+    Unified router that exposes the supplier-agnostic ``/space`` endpoints for
+    search and product lookups, delegating to the service layer for aggregation
+    and normalisation.
+
 ``app/dependencies``
     Dependency helpers that prepare adapter instances for request handlers. For
     example, :func:`app.dependencies.intercars.get_intercars_adapter` injects
@@ -40,7 +45,9 @@ Backend Packages
 
 ``app/services``
     Cross-cutting helpers that are reused by multiple adapters. Currently this
-    hosts the token cache abstraction shared by InterCars routes.
+    hosts the token cache abstraction shared by InterCars routes and the
+    unified catalog service that fans out requests to all enabled suppliers and
+    returns BM Parts–shaped responses with partial failure metadata.
 
 ``app/config.py``
     Centralises configuration read from environment variables (tokens, API
