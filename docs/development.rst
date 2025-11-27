@@ -15,23 +15,26 @@ The backend targets Python 3.11. Install dependencies and run the service with:
 Environment Variables
 ---------------------
 
-The adapters expect the following environment variables to be populated before
-startup:
+Supplier adapters require credentials during startup or when handling requests.
+Populate the following variables in your ``.env`` file:
 
 ``BM_PARTS_TOKEN``
-    Static token string used to authenticate against the BM Parts API.
+    Static token string used to authenticate against the BM Parts API. Used as
+    the default credential for clients that do not provide their own token.
+
+``ASG_TOKEN``
+    Default ASG bearer token. Requests can override this by supplying
+    ``login``/``password`` or a different ``token`` via ``supplier_options``.
+
+``OMEGA_KEY``
+    API key for Omega. Stored as the default ``key`` in unified calls.
+
+``UNIQTRADE_EMAIL`` / ``UNIQTRADE_PASSWORD`` / ``UNIQTRADE_FINGERPRINT``
+    Required credential trio for UniqTrade requests. Stored as defaults and can
+    be overridden per client.
 
 ``INTERCARS_CLIENT_ID`` / ``INTERCARS_CLIENT_SECRET``
     OAuth client credentials for the InterCars integration.
-
-``ASG_TOKEN``
-    Default ASG API token used for bootstrap flows.
-
-``OMEGA_API_URL`` and ``OMEGA_API_KEY``
-    Base URL and API key for Omega requests.
-
-``UNIQTRADE_API_KEY``
-    Credential required by the UniqTrade client.
 
 
 Running Tests

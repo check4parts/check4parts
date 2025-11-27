@@ -6,6 +6,7 @@ Check4Parts Technical Documentation
    :caption: Contents
 
    architecture
+   supplier_credentials
    backend_modules
    api_reference
    development

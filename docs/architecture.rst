@@ -44,10 +44,13 @@ Backend Packages
     extracts login information from headers or bodies.
 
 ``app/services``
-    Cross-cutting helpers that are reused by multiple adapters. Currently this
-    hosts the token cache abstraction shared by InterCars routes and the
-    unified catalog service that fans out requests to all enabled suppliers and
-    returns BM Parts–shaped responses with partial failure metadata.
+    Cross-cutting helpers that are reused by multiple adapters. This includes
+    the credential manager that merges default environment tokens with
+    per-client overrides, the token cache abstraction shared by InterCars
+    routes, and the unified catalog service that fans out requests to all
+    enabled suppliers and returns BM Parts–shaped responses with partial
+    failure metadata. Suppliers without valid credentials for the authenticated
+    client are automatically skipped to avoid blocking other providers.
 
 ``app/config.py``
     Centralises configuration read from environment variables (tokens, API

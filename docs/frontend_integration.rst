@@ -10,6 +10,29 @@ Authentication
 All routes require the Supabase JWT in the ``Authorization`` header:
 ``Authorization: Bearer <supabase-jwt>``.
 
+Credential handling
+-------------------
+
+Supplier adapters need API credentials to execute requests. The unified layer
+combines three sources:
+
+- Defaults from environment variables.
+- Credentials previously provided by the authenticated client.
+- Per-request ``supplier_options``.
+
+When overrides are present they are stored for that client, so subsequent calls
+do not need to repeat the secrets. Suppliers missing the required fields are
+skipped and listed under ``meta.skipped_suppliers``.
+
+Required fields per supplier
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ``bm-parts``: ``token``
+- ``asg``: either ``token`` or a ``login``/``password`` pair
+- ``omega``: ``key``
+- ``uniqtrade``: ``email``, ``password``, and ``fingerprint``
+- ``intercars``: ``client_id`` and ``client_secret``
+
 Search flow (``POST /space/search``)
 ------------------------------------
 
@@ -26,7 +49,8 @@ Search flow (``POST /space/search``)
 - ``products``: list of entries with ``part`` (BM Parts-like fields), ``rests``
   availability, ``supplier`` slug, and ``raw`` provider payload.
 - ``meta``: includes ``requested_suppliers``, ``failed_suppliers`` with
-  ``status_code``/``detail``, and ``partial_failure`` boolean.
+  ``status_code``/``detail``, ``skipped_suppliers`` for missing credentials, and
+  ``partial_failure`` boolean.
 
 **Fetch example**
 
@@ -59,8 +83,9 @@ Product details flow (``POST /space/products``)
 
 - ``products``: BM Parts-shaped product entries (``part``, ``rests``,
   ``supplier``, ``raw``)
-- ``meta``: ``failed_suppliers`` array and ``partial_failure`` flag. Successful
-  suppliers still return results even if others fail.
+- ``meta``: ``failed_suppliers`` array, ``skipped_suppliers`` for missing
+  credentials, and ``partial_failure`` flag. Successful suppliers still return
+  results even if others fail.
 
 **Fetch example**
 
